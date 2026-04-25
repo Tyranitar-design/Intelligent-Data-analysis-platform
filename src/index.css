@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+
+  --color-cyber-cyan: #00dbe7;
+  --color-cyber-cyan-bright: #74f5ff;
+  --color-cyber-purple: #7701d0;
+  --color-cyber-purple-bright: #dcb8ff;
+  --color-cyber-green: #2ae500;
+  --color-cyber-red: #ffb4ab;
+  --color-bg-deep: #080e1c;
+  --color-bg-surface: #0d1321;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-deep text-slate-300 font-sans overflow-hidden antialiased;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-slate-900/40 backdrop-blur-xl border border-cyan-500/10 shadow-[inset_0_0_20px_rgba(0,242,255,0.02)];
+  }
+
+  .neon-text-cyan {
+    @apply text-cyber-cyan drop-shadow-[0_0_8px_rgba(0,219,231,0.4)];
+  }
+
+  .neon-border-cyan {
+    @apply border-cyber-cyan/50 shadow-[0_0_15px_rgba(0,242,255,0.2)];
+  }
+
+  .scanning-line {
+    @apply absolute left-0 w-full h-[1px] bg-cyber-cyan/30 shadow-[0_0_8px_rgba(0,219,231,0.5)] pointer-events-none z-10;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00dbe744;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00dbe788;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');

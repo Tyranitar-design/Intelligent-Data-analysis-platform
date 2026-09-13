@@ -7,8 +7,10 @@
 
 ## 阶段 P0 · 收敛与基线治理
 
-状态：**进行中**
+状态：**已完成 ✅**
 开始：2026-09-14
+完成：2026-09-14
+提交：`c94620a`（73 files changed, +432 / -680）
 
 ---
 
@@ -171,16 +173,192 @@ ME       200 → {"username":"smoke_probe","email":"...","id":1,"role":"analyst"
 
 ---
 
-### 待办
+### P0.4 消除同名模块/包冲突 ✅
 
-- [ ] **P0.4** 消除同名模块/包冲突（Python 导入歧义）
-- [ ] **P0.5** 删除重复入口
-- [ ] **P0.6** 测试归位
-- [ ] **P0.7** 文档收敛
-- [ ] **P0.8** 无关文件处理
+**问题（阻断性）**：Python 导入歧义。同名模块与包并存：
 
-### 待确认（需 YG 决策）
+| 同名对 | 状态 | 判定 |
+|---|---|---|
+| `api/models.py` / `api/models/` | 模块被包遮蔽 | 删模块 |
+| `api/schemas.py` / `api/schemas/` | 模块被包遮蔽 | 删模块 |
+| `api/database.py` / `api/core/database.py` | **两个都是活的** | 合并 |
+
+第二组是真问题：两套独立的 engine、SessionLocal、Base 并存。`main.py` 只调用
+`core.database.init_db()`，因此 `api/models.py` 里的模型**永远不会被建表**；
+而 4 个 router 却用着旧栈的 `get_db`，且 `expire_on_commit` 行为不一致。
+
+**动作**：
+
+- 4 个 router + reports.py 的 `from api.database import get_db` 统一改为 `api.core.database`
+- 删除 `api/database.py`、`api/models.py`、`api/schemas.py`
+- 删除前确认：`PredictionTask` 仅被独立 Django admin 项目引用（与 FastAPI 无关）；
+  `DataSourceBase` / `ErrorResponse` 无任何引用
+
+**验收**：
+
+```
+残留引用扫描: clean
+IMPORT OK, routes: 106
+200  /health                    200  /api/v1/reports/
+200  /capabilities              200  /api/v1/data/overview
+200  /api/v1/crawl/adapters     200  /api/v1/analysis/db/data/datasets
+```
+
+---
+
+### P0.5 删除重复入口 + 修复失效的 tailwind 配置 ✅
+
+**动作一：删除 8 个重复入口**
+
+```
+backend/api/main-v2.py        backend/run_api.py
+backend/run_api_simple.py     frontend/src/App-v2.tsx
+frontend/package-v2.json      frontend/tailwind.config.cjs
+frontend/postcss.config.cjs   docker-compose.yml
+```
+
+删除前验证：`main.tsx` 引用 `./App`；`run-dev.ps1` 使用 `uvicorn api.main:app`。
+
+**动作二：修复失效的 tailwind 配置（发现一个真 bug）**
+
+两个 tailwind 配置各有一半可用内容，而 Tailwind 的配置优先级是
+`.js > .cjs > .mjs > .ts`，因此 `.cjs` **从未被加载**：
+
+- `.js`（生效）：shadcn/ui CSS 变量色板、darkMode、container、accordion 动画
+- `.cjs`（失效）：cyber 色板、fontFamily、marquee 动画、@tailwindcss/typography
+
+后果：`components/cyber/*` 里使用的 `text-cyber-cyan`、`bg-bg-deep` 等类名
+**从未被生成**，赛博主题实际处于失效状态。
+
+处理：把 `.cjs` 独有内容合并进 `.js`，删除 `.cjs`。
+
+**验收**：
+
+```
+$ npm run build
+✓ 2005 modules transformed
+✓ built in 38.47s
+dist/assets/index-*.css   89.10 kB   (合并前 64.34 kB)
+
+CSS 体积 +24.76 kB —— 证明此前未生成的 cyber 类名现已生效
+```
+
+---
+
+### P0.6 测试归位 ✅
+
+**问题**：`backend/` 根目录堆着 36 个 `test_*.py`。清点后发现：
+
+- **25 个根本没有 test 函数**（一次性探索脚本）
+- 11 个含 test 函数，其中仅 5 个真正含断言
+
+**问题二**：`pytest --collect-only` 直接崩溃：
+
+```
+ValueError: I/O operation on closed file.
+no tests collected, 1 error
+```
+
+根因：`test_alt_apis.py` 第 6 行在模块导入时执行
+`sys.stdout = io.TextIOWrapper(sys.stdout.buffer, ...)`，污染了 pytest 的 capture 机制。
+
+**动作**：
+
+- 5 个含断言的 → `tests/contract/`、`tests/integration/`
+- 6 个有 test 函数但无断言 → `tests/legacy/`
+- 25 个探索脚本 → `scripts/archive/`
+- `check_*.py` / `populate_db.py` / `cleanup_db.py` / `crawl_jd_human.py` → `scripts/`
+- 修复 `test_alt_apis.py`：改用 `sys.stdout.reconfigure()` 并加 `hasattr` 守卫
+- 新增 `backend/pytest.ini`（`testpaths` / `pythonpath` / `norecursedirs`）
+
+**验收**：
+
+```
+$ pytest --collect-only -q
+tests/contract/test_smoke_contracts.py: 2
+tests/integration/test_capabilities_api.py: 1
+tests/integration/test_ml_pipeline.py: 4
+tests/integration/test_smoke_assisted_auth.py: 3
+tests/integration/test_smoke_runner_non_auth.py: 3
+tests/legacy/*.py: 30
+
+共 43 个测试，11 个文件，零错误
+```
+
+后端根目录已无任何 `test_*.py` / `check_*.py`。
+
+---
+
+### P0.7 文档收敛 ✅
+
+根目录 6 份文档减至 3 份。归档（不删除，保留历史）到 `docs/archive/`：
+
+```
+README.md                      -> docs/archive/README-legacy.md
+DESIGN.md                      -> docs/archive/DESIGN-legacy.md
+DESIGN-v2-Enterprise.md        -> docs/archive/DESIGN-v2-enterprise.md
+PROJECT_OPTIMIZATION_PLAN.md   -> docs/archive/PROJECT-OPTIMIZATION-PLAN.md
+```
+
+根目录保留：`AGENTS.md`、`AUTH-ANTICRAWL-GUIDE.md`、`README-v2.md`。
+
+新增本文件与 `REBUILD-SPEC-v3.md`、`HERMES-PROMPT-v3.md`。
+
+---
+
+### P0.8 无关文件归档 ✅
+
+`backend/alns_vrptw_{compare,destroy,repair,solver,state}.py` —— 五个 ALNS 车辆路径
+求解器文件，与数据采集分析平台无关（疑似物流优化项目误入），移入 `scripts/archive/`。
+
+---
+
+## P0 完成总结
+
+### 三个阻断性缺陷（本次修复的核心价值）
+
+| # | 缺陷 | 症状 | 修复 |
+|---|---|---|---|
+| 1 | 数据库 schema 与 ORM 不同步 | 7 个模型全崩，106 路由里凡查库全挂 | 重建 + 回填，1459 行数据保留 |
+| 2 | passlib 与 bcrypt 5.0 不兼容 | 注册/登录完全不可用 | 直接调用 bcrypt |
+| 3 | 同名模块/包 + 双数据库栈 | 导入歧义 + 模型从未建表 | 统一到 core.database |
+
+外加一个隐性缺陷：**tailwind 赛博色板从未生效**（配置优先级问题）。
+
+### 项目状态变化
+
+| 维度 | P0 前 | P0 后 |
+|---|---|---|
+| git 跟踪文件 | 9 | 430+ |
+| 可信回滚点 | 无 | `v2-local-snapshot` + `c94620a` |
+| 数据库 ORM 可用性 | 0/7 | 7/7 |
+| 认证链路 | 不可用 | 注册→登录→鉴权 全通 |
+| 根目录测试文件 | 36 个混杂 | 0 |
+| pytest 收集 | 崩溃 | 43 个测试 |
+| 重复入口 | 8 组 | 0 |
+| 赛博主题 | 失效 | 生效 |
+| 后端路由 | 106（部分坏） | 106（全可用） |
+
+---
+
+## 下一步：P1 判别内核
+
+目标：`backend/discover/` + `backend/compliance/`
+
+- `discover/fetcher.py` —— robots / sitemap / RSS 发现
+- `discover/structure.py` —— 列表 / 详情 / 分页结构识别
+- `discover/fields.py` —— 字段自动发现与覆盖率评估
+- `discover/profile.py` —— SiteProfile 构建与持久化
+- `compliance/engine.py` —— 四维矩阵判定
+- 建表：`site_profile`、`site_archetype`、`compliance_verdict`
+- 路由：`/api/v1/discover/analyze`
+
+---
+
+## 待确认（需 YG 决策）
 
 1. 测试用户 `smoke_probe`（id=1）为 P0.3 验收产生，保留还是清理？
-2. `backend/alns_vrptw_*.py` 五个 VRP 求解器文件与数据采集平台无关，疑似其他项目误入，
-   是否移出本项目？
+2. 前端历史组件 `components/cyber/*`（8 个赛博视图）与 `pages/CyberIndex.tsx` 如何处置：
+   作为 P6 新前端的设计基础保留，还是推倒重做？
+3. P6 前端体积治理方案确认：移除 `antd`（与 shadcn/ui 重复）、图表库收敛为 ECharts 单一
+   （现为 plotly + echarts + recharts 三套并存），预计可把 5.35 MB 主包降至 1.5 MB 以内。

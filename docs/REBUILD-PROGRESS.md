@@ -734,17 +734,121 @@ GET  /api/v1/analytics/types                支持的分析类型
 
 ---
 
-## 下一步：P5 MCP 工具面
+## 阶段 P5 · MCP 工具面
 
-目标：把平台能力以 MCP 工具形式暴露给 Hermes。
+状态：**已完成 ✅**
+完成：2026-09-14
 
-- `backend/mcp/server.py` + `tools/` 七个工具
-- 鉴权（principal 绑定）、审计（入参只存摘要哈希）
-- 部署脚本与接入文档
-- 七个工具：`analyze_site` / `plan_collection` / `run_collection` /
-  `job_status` / `query_dataset` / `run_analysis` / `make_report`
+目标：把平台能力以 MCP 工具形式暴露，供 Hermes 等 24 小时在线的代理调用。
 
-设计约束见 `docs/HERMES-PROMPT-v3.md` 第 6 章。
+### 交付内容
+
+```
+backend/mcp/
+  __init__.py
+  protocol.py    JSON-RPC 2.0 消息类型与错误码
+  registry.py    工具注册表与入参校验
+  auth.py        Bearer 鉴权（fail-closed）
+  audit.py       审计写入（入参只存摘要哈希）
+  server.py      协议处理器
+  tools/
+    __init__.py     七个工具聚合
+    discovery.py    analyze_site / plan_collection / run_collection / job_status
+    analytics.py    query_dataset / run_analysis / make_report
+backend/api/routers/mcp.py   HTTP 端点
+backend/collect/planner.py   计划构建与合规校验（从路由抽出，REST 与 MCP 共用）
+backend/tests/integration/test_mcp_server.py  17 个测试
+```
+
+### 关键设计
+
+**自实现协议而非引入 SDK**。MCP 的传输核心很薄（`initialize` / `tools/list` /
+`tools/call`），自实现是零新依赖，同时减少 Lite 形态（Hermes 服务器）的部署负担
+与版本兼容风险。包名与官方 SDK 同名这点已在 `mcp/__init__.py` 注明——
+当前环境未安装 SDK，将来引入需先做命名隔离。
+
+**fail-closed 鉴权**。未配置 `MCP_API_KEY` 时拒绝所有需鉴权的调用，
+而不是静默放行。配置缺失属于部署错误，不该表现为"谁都能调"。
+token 用 `secrets.compare_digest` 常量时间比较，避免时序侧信道。
+
+**敏感入参不入审计**。入参先对 `authorization_token` / `password` / `api_key`
+等键做脱敏，再计算摘要哈希；审计表里只有哈希值，没有原文。
+
+**工具粒度固定为七**。更细会让调用方承担编排责任、错误率上升；
+更粗会让调用方失去控制点和中间反馈。这七个覆盖
+「分析 → 规划 → 执行 → 观察 → 取数 → 分析 → 交付」全环。
+
+**计划构建逻辑抽出到 `collect/planner.py`**，REST 端点与 MCP 工具共用同一实现——
+两个入口本该只有一套逻辑，这是 P0 定下的单一定义原则的延续。
+
+### 本轮修复的问题
+
+**鉴权失败未写审计**。`authenticate()` 在审计写入之前抛出，导致被拒绝的调用
+不留痕——而安全审计的重点恰恰是失败尝试。已修复：鉴权失败同样记
+`result="denied"` 并附 `stage="auth"`。
+
+**入参类型校验漏掉 bool**。Python 里 `bool` 是 `int` 的子类，
+`{"dataset_id": True}` 会被当成 `1` 通过校验。已在类型校验中显式排除。
+
+### 验证结果
+
+```
+$ pytest tests/integration/test_mcp_server.py -q
+17 passed
+```
+
+覆盖：协议方法（initialize / ping / tools/list / 未知方法 / 非法 JSON / 通知）、
+鉴权（未配置 / 缺头 / 错 token / 正确 token / 多 token 多身份）、
+参数校验（未知工具 / 缺必填 / 类型错误 / bool 混入）、审计留痕与敏感值不落库。
+
+协议实测：
+
+```
+GET  /mcp                      → 200，7 个工具，auth_configured 状态
+POST initialize                → protocolVersion 2024-11-05
+POST tools/list                → 7 tools（每个含 inputSchema）
+POST ping                      → {}
+POST 未知方法                   → -32601
+POST tools/call（未鉴权）      → -32001 AUTH_REQUIRED
+POST tools/call（错 token）    → -32002 INVALID_TOKEN
+```
+
+### 接入方式
+
+```bash
+# 1. 配置 token（.env）
+python -c "import secrets;print(secrets.token_urlsafe(32))"
+# 写入 MCP_API_KEY=<token>:hermes
+
+# 2. 启动服务
+run-dev.cmd start
+
+# 3. 验证
+curl http://127.0.0.1:8000/mcp
+```
+
+Hermes 侧配置 MCP 端点 `http://<host>:8000/mcp`（streamable-http），
+带 `Authorization: Bearer <token>`。
+
+### 未完成项
+
+- 部署脚本（systemd / Windows 服务 / Docker）未提供，当前用 `run-dev.cmd` 手动启动
+- 两形态协作（本机 ↔ Hermes）未打通，设计上留到 P7
+
+---
+
+## 下一步：P6 企业级前端
+
+目标：把前端从"能用"做到"能展示"。
+
+- 体积治理：主包当前 5.35 MB，移除 `antd`（与 shadcn/ui 重复）、
+  图表库收敛为 ECharts 单一（现为 plotly + echarts + recharts 三套并存）
+- 六个核心页面：工作台、站点分析、采集任务、数据集、数据分析、报告
+- 设计语言：深色科技感、3D/动效手法（参考 `D:\网站复刻实战项目` 的技术手法
+  与 `D:\UI设计库网站集合` 的组件库）
+- 保留并可复用的现有资产：`components/cyber/*` 八个赛博视图、
+  `ParticleNetwork.tsx`、`styles/cyber.css`
+- 目标：可作 GitHub 展示与简历项目
 
 ---
 

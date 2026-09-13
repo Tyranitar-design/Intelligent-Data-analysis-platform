@@ -23,6 +23,7 @@ from api.routers import (
     data,
     discover,
     health,
+    mcp,
     reports,
     smoke,
 )
@@ -113,6 +114,7 @@ app.include_router(smoke.router, prefix="/api/v1/smoke", tags=["验收中心"])
 app.include_router(discover.router, prefix="/api/v1/discover", tags=["站点判别"])
 app.include_router(collect.router, prefix="/api/v1/collect", tags=["数据采集 v3"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["分析 v3"])
+app.include_router(mcp.router, prefix="/mcp", tags=["MCP 工具面"])
 
 optional_ml = _try_import_optional_router("api.routers.ml")
 optional_dl = _try_import_optional_router("api.routers.dl")

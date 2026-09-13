@@ -43,3 +43,6 @@ data/processed/
 tmp/
 temp/
 backend/admin.bak/
+
+# 数据库迁移备份：本地保留用于回滚，不入版本库
+*.db.bak-*

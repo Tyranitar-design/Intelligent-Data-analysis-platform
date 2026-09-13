@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from api.database import get_db
+from api.core.database import get_db
 from api.models import Dataset
 from api.schemas import DatasetCreate, DatasetResponse, SuccessResponse
 from analysis.service import AnalysisService

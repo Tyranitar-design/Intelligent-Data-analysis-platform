@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 
-from api.database import get_db
+from api.core.database import get_db
 from api.models import MLModel, Dataset
 from api.schemas import (
     MLModelCreate, MLModelResponse,

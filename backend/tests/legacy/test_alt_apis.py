@@ -3,7 +3,12 @@
 测试替代新闻API和更多金融接口
 """
 import sys, os, io, json, urllib.request, re, asyncio
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+# 不要直接替换 sys.stdout —— 那会破坏 pytest 的 capture 机制，
+# 表现为收集阶段报 "ValueError: I/O operation on closed file"。
+# 需要 UTF-8 输出时用 reconfigure，且仅在当前 stdout 支持时调用。
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 def test_url(url, headers=None, desc=""):
     try:

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from api.database import get_db
+from api.core.database import get_db
 from api.models import DataSource, CrawlTask
 from api.schemas import (
     DataSourceCreate, DataSourceResponse,

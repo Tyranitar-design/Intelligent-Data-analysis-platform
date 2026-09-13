@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from api.database import get_db
+from api.core.database import get_db
 from api.models import Report, Dataset
 from api.schemas import ReportResponse, SuccessResponse
 from reports.service import ReportService

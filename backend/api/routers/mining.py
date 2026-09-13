@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 
-from api.database import get_db
+from api.core.database import get_db
 from mining.service import MiningService
 from pydantic import BaseModel, Field
 

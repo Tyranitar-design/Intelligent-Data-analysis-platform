@@ -6,7 +6,10 @@ fastapi==0.110.0
 uvicorn[standard]==0.31.1
 python-multipart==0.0.9
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+# 直接使用 bcrypt，不再经 passlib 中转：passlib 1.7.4 已停止维护，
+# 且依赖已被移除的 bcrypt.__about__，与 bcrypt>=4.1 不兼容
+# （表现为密码哈希/校验抛 ValueError: password cannot be longer than 72 bytes）。
+bcrypt==5.0.0
 
 # ==================== 数据库 ====================
 sqlalchemy==2.0.28

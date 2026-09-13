@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 
 from api.core.config import settings
 from api.core.database import get_db
@@ -15,16 +15,37 @@ from api.models.user import User
 from api.schemas.user import UserCreate, UserResponse, Token
 
 router = APIRouter()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
+# bcrypt 算法只处理前 72 字节，超出部分必须显式截断，否则新版 bcrypt
+# 会直接抛 ValueError。passlib 1.7.4 已停止维护且与新 bcrypt 不兼容
+# （它读取已被移除的 bcrypt.__about__），因此这里直接调用 bcrypt。
+_BCRYPT_MAX_BYTES = 72
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+
+def _to_bcrypt_bytes(value: str) -> bytes:
+    return value.encode("utf-8")[:_BCRYPT_MAX_BYTES]
 
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """校验明文密码与密码哈希是否匹配。"""
+    if not plain_password or not hashed_password:
+        return False
+    try:
+        return bcrypt.checkpw(
+            _to_bcrypt_bytes(plain_password),
+            hashed_password.encode("utf-8"),
+        )
+    except (ValueError, TypeError):
+        return False
+
+
+def get_password_hash(password: str) -> str:
+    """生成 bcrypt 密码哈希。"""
+    return bcrypt.hashpw(
+        _to_bcrypt_bytes(password),
+        bcrypt.gensalt(),
+    ).decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: timedelta = None):

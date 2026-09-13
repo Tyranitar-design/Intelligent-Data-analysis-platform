@@ -14,7 +14,17 @@ from fastapi.responses import JSONResponse
 
 from api.core.config import settings
 from api.core.database import init_db
-from api.routers import analysis, auth, crawl, data, discover, health, reports, smoke
+from api.routers import (
+    analysis,
+    auth,
+    collect,
+    crawl,
+    data,
+    discover,
+    health,
+    reports,
+    smoke,
+)
 
 
 logging.basicConfig(
@@ -100,6 +110,7 @@ app.include_router(data.router, prefix="/api/v1/data", tags=["数据浏览"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["报告"])
 app.include_router(smoke.router, prefix="/api/v1/smoke", tags=["验收中心"])
 app.include_router(discover.router, prefix="/api/v1/discover", tags=["站点判别"])
+app.include_router(collect.router, prefix="/api/v1/collect", tags=["数据采集 v3"])
 
 optional_ml = _try_import_optional_router("api.routers.ml")
 optional_dl = _try_import_optional_router("api.routers.dl")

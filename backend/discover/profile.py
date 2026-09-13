@@ -185,9 +185,14 @@ class SiteProfiler:
                     access_state=existing.access_state or {},
                     declared_authorization=declared_authorization,
                 )
+                payload = verdict.to_dict()
+                latest = self._latest_verdict(existing.id)
+                if latest is not None:
+                    payload["verdict_id"] = latest.verdict_uid
+                    payload["verdict_row_id"] = latest.id
                 return AnalyzeResult(
                     profile=existing.to_dict(),
-                    verdict=verdict.to_dict(),
+                    verdict=payload,
                     cached=True,
                     notes=["命中已有画像，未重新探测"],
                 )
@@ -251,6 +256,7 @@ class SiteProfiler:
                 "robots_fetched": robots.fetched,
                 "robots_allowed": robots.can_fetch(url),
                 "robots_disallow": robots.disallow[:20],
+                "robots_allow": robots.allow[:20],
                 "crawl_delay": robots.crawl_delay,
                 "sitemaps": sitemaps,
                 "feeds": [f["url"] for f in feeds],
@@ -316,11 +322,16 @@ class SiteProfiler:
                 coverage=round(coverage, 4),
             )
 
-            self._record_verdict(profile.id, url, verdict)
+            record = self._record_verdict(profile.id, url, verdict)
+
+            verdict_payload = verdict.to_dict()
+            # 回传对外引用 ID 与内部主键，供后续计划 / 采集引用判定
+            verdict_payload["verdict_id"] = record.verdict_uid
+            verdict_payload["verdict_row_id"] = record.id
 
             return AnalyzeResult(
                 profile=profile.to_dict(),
-                verdict=verdict.to_dict(),
+                verdict=verdict_payload,
                 cached=False,
                 fetch_count=fetcher.request_count,
                 notes=notes,
@@ -410,10 +421,13 @@ class SiteProfiler:
         self.session.refresh(profile)
         return profile
 
-    def _record_verdict(self, profile_id: int, url: str, verdict: Any) -> None:
-        """判定记录落库（合规留痕）。"""
+    def _record_verdict(
+        self, profile_id: int, url: str, verdict: Any
+    ) -> ComplianceVerdict:
+        """判定记录落库（合规留痕）。返回写入的记录。"""
         record = ComplianceVerdict(
-            verdict_uid=verdict.authorization_token or f"v-{profile_id}-{abs(hash(url)) % 10**8}",
+            verdict_uid=verdict.authorization_token
+            or f"v-{profile_id}-{abs(hash(url)) % 10**8}",
             profile_id=profile_id,
             target_url=url[:1000],
             decision=str(verdict.decision),
@@ -430,6 +444,18 @@ class SiteProfiler:
         )
         self.session.add(record)
         self.session.commit()
+        self.session.refresh(record)
+        return record
+
+    def _latest_verdict(self, profile_id: int) -> Optional[ComplianceVerdict]:
+        """取某个画像最近一次判定记录。"""
+        stmt = (
+            select(ComplianceVerdict)
+            .where(ComplianceVerdict.profile_id == profile_id)
+            .order_by(ComplianceVerdict.id.desc())
+            .limit(1)
+        )
+        return self.session.execute(stmt).scalars().first()
 
     @staticmethod
     def _is_same_structure(old: dict, new: dict) -> bool:

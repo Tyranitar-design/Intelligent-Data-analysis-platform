@@ -440,17 +440,119 @@ GET  /api/v1/discover/verdicts             判定留痕（审计用）
 
 ---
 
-## 下一步：P2 采集内核
+## 阶段 P2 · 采集内核
 
-目标：`backend/collect/`
+状态：**已完成 ✅**（人机协同通道除外，见"未完成项"）
+完成：2026-09-14
 
-- `collect/registry.py` —— Capability 协议与注册表（评分选链）
-- `collect/scheduler.py` —— 任务编排、分片、断点续传
-- `collect/capabilities/` —— 8 个能力实现（复用现有 `intelligent/strategies/`）
-- `collect/dedup.py` —— 三级去重（主键 / SimHash / 语义）
-- `collect/ratelimit.py` —— 自适应限速
-- `collect/assist.py` —— 人机协同通道
-- 建表：`collect_plan`、`collect_job`、`collect_task`、`collect_item`
+目标：把判别结果变成真正取回数据的能力——按评分选链、失败自动降级、
+三级去重、自适应限速、可断点续跑。
+
+### 交付内容
+
+```
+backend/collect/
+  __init__.py
+  registry.py           Capability 协议、注册表、评分选链
+  ratelimit.py          按域名的自适应限速
+  dedup.py              三级去重（主键 / SimHash / 语义接口）
+  scheduler.py          任务编排、降级、入库、统计
+  capabilities/
+    _common.py              共享取页工具（限速 + 并发闸门 + robots 检查）
+    feed_reader.py          RSS / Atom（最高优先）
+    sitemap_walker.py       Sitemap 遍历
+    structured_extractor.py 列表 → 详情 → 字段提取（主力）
+    http_fetcher.py         单页兜底
+    browser_renderer.py     公开页面渲染（运行时缺失时降级）
+backend/api/models/collect_plan.py   新增表 collect_plans
+backend/api/models/collect_job.py    新增表 collect_jobs / collect_tasks / collect_items
+backend/api/schemas/collect.py
+backend/api/routers/collect.py       6 个端点
+backend/tests/integration/test_collect_pipeline.py  3 个端到端测试
+```
+
+### 关键实现点
+
+**评分选链取代 if-else 分支**。每个能力实现 `score() / execute() / cost_estimate()`，
+调度器按 `评分 × (1 + priority×0.1) × 画像推荐加权` 排序。实测五种画像的选链：
+
+```
+RSS 站点      → feed_reader → structured_extractor → http_fetcher → browser_renderer
+Sitemap 站点  → sitemap_walker → structured_extractor → http_fetcher → browser_renderer
+列表页静态    → structured_extractor → http_fetcher → browser_renderer
+JS 渲染站     → browser_renderer → structured_extractor → http_fetcher
+验证码站      → （空链，不执行）
+```
+
+**降级语义严格区分**：`DEGRADE` 表示本能力不适用、继续试下一候选；
+`FAILED` 表示硬失败（如被目标拒绝），不再降级。
+
+**自适应限速实测**：基准 10/s → 遇 429 降至 5/s → 连续 10 次成功后恢复至 6/s
+→ 遇 503 降至 3/s 并遵守 `Retry-After 2s`。3 次请求在 3/s 节奏下耗时 2.69 秒。
+
+**三级去重实测**：跟踪参数不变性（`?utm_source=x` 与无参数得到同一 item_key）；
+近重复文本汉明距离 1，异文距离 32；同站点二次采集条目数不增长。
+
+**合规强制点第二层防线**：`/collect/run` 在创建任务前查判定——
+`blocked` 返回 403 + 替代源清单；`confirm_required` 要求携带有效令牌并校验有效期。
+
+### 本轮修复的两个真 bug
+
+**1. sitemap 解析器只看根的直接子节点**
+
+标准结构是 `<urlset><url><loc>…</loc></url></urlset>`——`<loc>` 位于 `<url>` 之下，
+原实现在根的子节点里找 `loc` 永远找不到，导致 sitemap 能力始终"未产出可用 URL"。
+改为递归查找并兼容 `loc` 直接挂根的写法。
+
+**2. 全部命中去重时错误降级**
+
+增量采集时若所有条目都已采过，原实现返回 `DEGRADE`，调度器据此降级到兜底能力
+（`http_fetcher`），把列表页本身也采成一条新数据——二次采集条目数从 3 涨到 4。
+修复：全部命中属于"无新增"的正常结果，返回 `OK` 并记录 `known_hits`。
+
+### 验证结果
+
+```
+$ pytest tests/integration/test_collect_pipeline.py tests/integration/test_discover_analyze.py -v
+tests/integration/test_collect_pipeline.py ...        [ 25%]
+tests/integration/test_discover_analyze.py .........  [100%]
+
+12 passed in 9.61s
+```
+
+覆盖：完整采集闭环 / 二次采集增量去重 / sitemap 能力独立可用 /
+URL 归一化 / robots 路径级判定 / 判别链路 / 缓存复用 / 验证码阻断。
+
+端点数 100 → 106：
+
+```
+POST /api/v1/collect/plan        创建计划（不产生网络请求）
+POST /api/v1/collect/run         执行计划（合规拦截点）
+GET  /api/v1/collect/jobs        任务列表
+GET  /api/v1/collect/jobs/{id}   任务详情（含分片状态与游标）
+GET  /api/v1/collect/items       数据条目查询
+GET  /api/v1/collect/registry    已注册能力清单
+```
+
+### 未完成项
+
+1. **`collect/assist.py` 人机协同通道**未实现。需要在真实遇到验证码/登录墙时
+   才有验证场景，留到有实际站点需求时补。
+2. **断点续传只做了数据结构**（`CollectTask.cursor` 已落库），重入恢复逻辑
+   尚未实现——当前每个 job 只有一个分片，续传语义还不构成瓶颈。
+
+---
+
+## 下一步：P3 数据管道
+
+目标：`backend/pipeline/`
+
+- `pipeline/normalize.py` —— 统一字段类型系统与清洗规则
+- `pipeline/storage.py` —— 三层存储适配（原始层对象存储 / 规范化层 PG / 分析层）
+- `pipeline/lineage.py` —— 字段级血缘
+- `pipeline/pii.py` —— PII 字段级最小化（哈希 / 分箱 / 泛化）
+- 建表：`dataset` 扩展、`audit_log`
+- 目标：把 `CollectItem` 汇总为可分析的 `Dataset`，并保留可追溯的血缘链
 
 ---
 

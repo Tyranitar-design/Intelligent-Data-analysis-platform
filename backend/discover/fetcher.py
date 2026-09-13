@@ -264,6 +264,21 @@ def _is_textual(content_type: str) -> bool:
     )
 
 
+def robots_from_profile(profile: dict) -> "RobotsInfo":
+    """从已落库的站点画像重建 robots 规则。
+
+    采集阶段复用判别阶段的探测结果，避免为每个任务重复请求 robots.txt。
+    """
+    access = profile.get("access") or {}
+    return RobotsInfo(
+        fetched=bool(access.get("robots_fetched")),
+        disallow=list(access.get("robots_disallow") or []),
+        allow=list(access.get("robots_allow") or []),
+        crawl_delay=access.get("crawl_delay"),
+        sitemaps=list(access.get("sitemaps") or []),
+    )
+
+
 def parse_robots(text: str, base_url: str = "") -> RobotsInfo:
     """解析 robots.txt 为路径级规则。
 

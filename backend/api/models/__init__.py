@@ -14,6 +14,8 @@ from api.models.ml_model import MLModel
 from api.models.report import Report
 from api.models.site_profile import SiteProfile
 from api.models.compliance_verdict import ComplianceVerdict
+from api.models.collect_plan import CollectPlan
+from api.models.collect_job import CollectItem, CollectJob, CollectTask
 
 __all__ = [
     "Base",
@@ -26,4 +28,8 @@ __all__ = [
     "Report",
     "SiteProfile",
     "ComplianceVerdict",
+    "CollectPlan",
+    "CollectJob",
+    "CollectTask",
+    "CollectItem",
 ]

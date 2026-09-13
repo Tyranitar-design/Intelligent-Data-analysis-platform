@@ -341,17 +341,116 @@ PROJECT_OPTIMIZATION_PLAN.md   -> docs/archive/PROJECT-OPTIMIZATION-PLAN.md
 
 ---
 
-## 下一步：P1 判别内核
+## 阶段 P1 · 判别内核
 
-目标：`backend/discover/` + `backend/compliance/`
+状态：**已完成 ✅**
+完成：2026-09-14
 
-- `discover/fetcher.py` —— robots / sitemap / RSS 发现
-- `discover/structure.py` —— 列表 / 详情 / 分页结构识别
-- `discover/fields.py` —— 字段自动发现与覆盖率评估
-- `discover/profile.py` —— SiteProfile 构建与持久化
-- `compliance/engine.py` —— 四维矩阵判定
-- 建表：`site_profile`、`site_archetype`、`compliance_verdict`
-- 路由：`/api/v1/discover/analyze`
+目标：输入一个 URL，产出该站点的可采性画像与合规判定。这是「对任何网站适用」
+从口号变成机制的关键一步。
+
+### 交付内容
+
+```
+backend/discover/
+  __init__.py     包入口与探测顺序说明
+  fetcher.py      获取层：robots / sitemap / feeds / 主文档
+  structure.py    结构识别：站点元信息、列表、分页、保护状态
+  fields.py       字段发现：结构化数据提取 + 覆盖率合并
+  profile.py      编排与持久化：SiteProfile 构建
+backend/compliance/
+  __init__.py
+  engine.py       四维矩阵判定引擎
+backend/api/models/site_profile.py          新增表 site_profiles
+backend/api/models/compliance_verdict.py    新增表 compliance_verdicts
+backend/api/schemas/discover.py             请求模型
+backend/api/routers/discover.py             4 个端点
+backend/tests/integration/test_discover_analyze.py   9 个测试
+```
+
+### 关键实现点
+
+**探测顺序固定**（低成本高确定性优先）：
+
+```
+robots.txt → Sitemap/RSS 发现 → 主文档获取 → 保护状态判定
+→ 结构化数据提取 → 列表/详情结构识别 → 分页识别
+→ 详情样本抽样 → 字段覆盖率合并 → 四维判定 → 策略生成
+```
+
+这个顺序让多数站点在"结构化数据提取"一步就拿到干净数据，不需要进入渲染。
+
+**robots.txt 按路径级判定**，不是整站开关。实现了 Allow 优先级、`*` 通配、
+`$` 锚定的最长匹配语义。见到 `Disallow` 就放弃整站是判定错误。
+
+**字段覆盖率为统计量**：同一字段在 N 个样本中命中 M 次 → 覆盖率 M/N。
+详情样本会并入统计，让"这个字段值不值得采"有数据依据。
+
+**判定引擎输出取证依据**：四维每一维都带理由字符串，判定可复核。
+
+**SiteProfile 版本化**：结构无实质变化时原地更新避免版本膨胀，
+有变化时新增 version 而非覆盖。
+
+### 验证结果
+
+**P1 测试**（`tests/integration/test_discover_analyze.py`）：
+
+```
+$ pytest tests/integration/test_discover_analyze.py -v
+tests/.../test_normalize_url_pattern[5 cases]        PASSED
+tests/.../test_robots_path_level_rules               PASSED
+tests/.../test_full_analyze_flow                     PASSED
+tests/.../test_second_analyze_hits_cache             PASSED
+tests/.../test_captcha_page_is_blocked               PASSED
+
+9 passed in 1.01s
+```
+
+**判定引擎七种场景实测**：
+
+```
+公开站点 + 官方通道      → proceed          A1/B1/C1/D1
+需登录 + 未声明          → confirm_required A2/B4  + 4 条解锁条件 + token
+验证码                   → blocked          A4     + 5 条替代源，覆盖率 0.989
+第三方凭证               → blocked          B5     + 5 条替代源
+自有凭证                 → proceed          A2/B2  + 凭证管理条件
+个人数据                 → confirm_required A1/B4  （B4 优先级高于 D3）
+书面授权 + 版权内容      → proceed          A1/B3/D2 + 用途限制条件
+```
+
+**结构识别实测**：站点类型分类（JSON-LD + 路径 + 文本三路证据）、
+技术栈指纹（generator meta + 特征串）、列表模式（`li.news-item` × 4）、
+分页（query param 'page'）、六种保护状态（captcha / cloudflare / paywall /
+login_wall / http401 / none）全部正确。
+
+**API 端点**：后端端点数 96 → 100。
+
+```
+POST /api/v1/discover/analyze              分析站点，产出画像 + 判定
+GET  /api/v1/discover/profiles             列出已缓存画像
+GET  /api/v1/discover/profiles/{id}        画像详情
+GET  /api/v1/discover/verdicts             判定留痕（审计用）
+```
+
+### 未完成项（推迟）
+
+`site_archetype` 站点原型库未实现。原型匹配需要累积一定数量的同域画像后
+才有统计意义（规格里定的门槛是同域 ≥ 3 且结构相似）。留到 P2 之后，
+有真实画像数据时再补。
+
+---
+
+## 下一步：P2 采集内核
+
+目标：`backend/collect/`
+
+- `collect/registry.py` —— Capability 协议与注册表（评分选链）
+- `collect/scheduler.py` —— 任务编排、分片、断点续传
+- `collect/capabilities/` —— 8 个能力实现（复用现有 `intelligent/strategies/`）
+- `collect/dedup.py` —— 三级去重（主键 / SimHash / 语义）
+- `collect/ratelimit.py` —— 自适应限速
+- `collect/assist.py` —— 人机协同通道
+- 建表：`collect_plan`、`collect_job`、`collect_task`、`collect_item`
 
 ---
 

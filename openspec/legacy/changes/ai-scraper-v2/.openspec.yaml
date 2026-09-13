@@ -1,0 +1,66 @@
+version: "2.0"
+type: change
+name: ai-scraper-v2
+title: "智能爬虫系统 v2.0"
+status: draft
+author: Claude
+created: "2026-05-09"
+updated: "2026-05-09"
+
+summary: |
+  基于 Harness Engineering + Vibe Coding 规范，对爬虫系统进行
+  企业级重构，引入智能策略选择、质量评估和可观测性。
+
+tags:
+  - crawler
+  - ai
+  - enterprise
+  - refactor
+
+depends_on:
+  - enterprise-refactor
+
+files:
+  - proposal.md
+  - specs.md
+  - tasks.md
+  - design.md
+
+milestones:
+  - id: m1
+    name: "核心框架"
+    status: pending
+  - id: m2
+    name: "Intent Engine"
+    status: pending
+  - id: m3
+    name: "策略实现"
+    status: pending
+  - id: m4
+    name: "Quality Assessor"
+    status: pending
+  - id: m5
+    name: "Adapt Manager"
+    status: pending
+  - id: m6
+    name: "集成与优化"
+    status: pending
+  - id: m7
+    name: "测试"
+    status: pending
+  - id: m8
+    name: "文档"
+    status: pending
+
+metrics:
+  code_coverage: 80
+  test_count: 100
+  strategy_count: 4
+
+resources:
+  python_version: ">=3.10"
+  dependencies:
+    - httpx>=0.27.0
+    - crawl4ai>=0.4.0
+    - pydantic>=2.0
+    - opentelemetry-api>=1.20

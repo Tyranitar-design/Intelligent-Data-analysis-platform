@@ -1,0 +1,19 @@
+version: "1.0"
+type: spec
+name: vibe-coding
+title: "Vibe Coding 规范"
+status: current
+author: Claude
+created: "2026-05-09"
+updated: "2026-05-09"
+
+summary: |
+  代码风格与协作规范 - 命名规范、代码格式、类型注解、异步编程、文档、Git协作
+
+tags:
+  - coding-style
+  - collaboration
+  - best-practices
+
+files:
+  - specs.md

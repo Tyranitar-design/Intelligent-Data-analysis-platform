@@ -1,0 +1,182 @@
+services:
+  # ==================== 数据库 ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: idp-postgres
+    environment:
+      POSTGRES_DB: data_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - idp-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: idp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - idp-network
+
+  # ==================== 对象存储 ====================
+  minio:
+    image: minio/minio:latest
+    container_name: idp-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-admin123456}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - idp-network
+
+  # ==================== 后端 API ====================
+  api:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.api
+    container_name: idp-api
+    environment:
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/data_platform
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_USER:-admin}
+      - MINIO_SECRET_KEY=${MINIO_PASSWORD:-admin123456}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - DEBUG=${DEBUG:-false}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - idp-network
+    restart: unless-stopped
+
+  # ==================== Celery Worker ====================
+  worker:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.api
+    container_name: idp-worker
+    command: celery -A api.celery_app worker --loglevel=info --concurrency=4
+    environment:
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/data_platform
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_USER:-admin}
+      - MINIO_SECRET_KEY=${MINIO_PASSWORD:-admin123456}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    networks:
+      - idp-network
+    restart: unless-stopped
+
+  # ==================== Celery Beat (定时任务) ====================
+  beat:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.api
+    container_name: idp-beat
+    command: celery -A api.celery_app beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/data_platform
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - idp-network
+    restart: unless-stopped
+
+  # ==================== 前端 ====================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: idp-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    networks:
+      - idp-network
+    restart: unless-stopped
+
+  # ==================== 监控 ====================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: idp-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - idp-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: idp-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    networks:
+      - idp-network
+
+# ==================== 网络与卷 ====================
+networks:
+  idp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:

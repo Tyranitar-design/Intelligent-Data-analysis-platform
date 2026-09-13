@@ -1,0 +1,189 @@
+/* ============================================
+   智能数据分析平台 - 全局 CSS 变量
+   创建时间: 2026-04-25
+   作者: 小彩 💫
+   ============================================ */
+
+:root {
+  /* ========== 颜色系统 ========== */
+  
+  /* 主色调 - 深邃科技蓝 */
+  --color-primary: #3B82F6;
+  --color-primary-light: #60A5FA;
+  --color-primary-dark: #2563EB;
+  --color-primary-bg: rgba(59, 130, 246, 0.1);
+  
+  /* 背景色 */
+  --color-bg-base: #0F172A;
+  --color-bg-secondary: #1E293B;
+  --color-bg-tertiary: #334155;
+  --color-bg-elevated: #1E293B;
+  
+  /* 表面/卡片 */
+  --color-surface: rgba(30, 41, 59, 0.8);
+  --color-surface-hover: rgba(51, 65, 85, 0.9);
+  --color-surface-active: rgba(71, 85, 105, 1);
+  
+  /* 强调色 - 琥珀金 */
+  --color-accent: #F59E0B;
+  --color-accent-light: #FBBF24;
+  --color-accent-dark: #D97706;
+  --color-accent-bg: rgba(245, 158, 11, 0.1);
+  
+  /* 功能色 */
+  --color-success: #10B981;
+  --color-success-light: #34D399;
+  --color-success-bg: rgba(16, 185, 129, 0.1);
+  
+  --color-warning: #F59E0B;
+  --color-warning-light: #FBBF24;
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+  
+  --color-error: #EF4444;
+  --color-error-light: #F87171;
+  --color-error-bg: rgba(239, 68, 68, 0.1);
+  
+  --color-info: #3B82F6;
+  --color-info-light: #60A5FA;
+  --color-info-bg: rgba(59, 130, 246, 0.1);
+  
+  /* 文字颜色 */
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-tertiary: #64748B;
+  --color-text-disabled: #475569;
+  --color-text-inverse: #0F172A;
+  
+  /* 边框 */
+  --color-border: rgba(148, 163, 184, 0.2);
+  --color-border-light: rgba(148, 163, 184, 0.1);
+  --color-border-focus: var(--color-primary);
+  
+  /* ========== 间距系统 ========== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+  
+  /* ========== 圆角系统 ========== */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+  
+  /* ========== 阴影系统 ========== */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.35);
+  --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.4);
+  
+  /* 发光阴影 */
+  --shadow-glow-primary: 0 0 20px rgba(59, 130, 246, 0.3);
+  --shadow-glow-accent: 0 0 20px rgba(245, 158, 11, 0.3);
+  --shadow-glow-success: 0 0 20px rgba(16, 185, 129, 0.3);
+  
+  /* ========== 过渡系统 ========== */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+  --transition-slower: 500ms ease;
+  
+  /* 弹性过渡 */
+  --transition-bounce: 300ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* ========== 字体系统 ========== */
+  --font-family-base: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'SF Mono', Monaco, Consolas, monospace;
+  
+  /* 字体大小 */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+  --font-size-4xl: 36px;
+  --font-size-5xl: 48px;
+  
+  /* 行高 */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  
+  /* 字重 */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* ========== 布局系统 ========== */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --header-height: 64px;
+  --footer-height: 48px;
+  
+  /* 内容区最大宽度 */
+  --content-max-width: 1440px;
+  
+  /* ========== Z-Index 层级 ========== */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  
+  /* ========== 玻璃拟态 ========== */
+  --glass-bg: rgba(30, 41, 59, 0.6);
+  --glass-border: rgba(148, 163, 184, 0.1);
+  --glass-blur: blur(12px);
+  
+  /* ========== 渐变 ========== */
+  --gradient-primary: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+  --gradient-accent: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
+  --gradient-success: linear-gradient(135deg, #10B981 0%, #3B82F6 100%);
+  --gradient-dark: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+  --gradient-surface: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(51, 65, 85, 0.6) 100%);
+}
+
+/* ========== 明亮主题 ========== */
+[data-theme='light'] {
+  --color-bg-base: #F8FAFC;
+  --color-bg-secondary: #F1F5F9;
+  --color-bg-tertiary: #E2E8F0;
+  --color-bg-elevated: #FFFFFF;
+  
+  --color-surface: rgba(255, 255, 255, 0.9);
+  --color-surface-hover: rgba(241, 245, 249, 0.95);
+  --color-surface-active: rgba(226, 232, 240, 1);
+  
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #64748B;
+  --color-text-disabled: #94A3B8;
+  --color-text-inverse: #F8FAFC;
+  
+  --color-border: rgba(15, 23, 42, 0.1);
+  --color-border-light: rgba(15, 23, 42, 0.05);
+  
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(15, 23, 42, 0.1);
+  
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.15);
+}

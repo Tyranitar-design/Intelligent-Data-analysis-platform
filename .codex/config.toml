@@ -1,0 +1,106 @@
+model_provider = "OpenAI"
+model = "gpt-5.5"
+review_model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+disable_response_storage = true
+network_access = "enabled"
+model_context_window = 1000000
+model_auto_compact_token_limit = 900000
+
+[model_providers.OpenAI]
+name = "OpenAI"
+base_url = "https://www.codex2api.com/v1"
+wire_api = "responses"
+requires_openai_auth = true
+
+[marketplaces.openai-bundled]
+last_updated = "2026-05-14T17:15:41Z"
+source_type = "local"
+source = '\\?\C:\Users\Administrator\.codex\.tmp\bundled-marketplaces\openai-bundled'
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-05-14T17:28:57Z"
+source_type = "local"
+source = '\\?\C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\plugins\openai-primary-runtime'
+
+[marketplaces.compound-engineering-plugin]
+last_updated = "2026-05-14T17:09:49Z"
+last_revision = "a0a08a17cb178655baeabe4045b5164b3a5cef58"
+source_type = "git"
+source = "https://github.com/EveryInc/compound-engineering-plugin.git"
+
+[windows]
+sandbox = "elevated"
+
+[projects.'c:\users\administrator\documents\codex\2026-05-09\new-chat-3']
+trust_level = "trusted"
+
+[projects.'c:\users\administrator\documents\codex\2026-05-09\d-openspec']
+trust_level = "trusted"
+
+[projects.'c:\users\administrator\desktop']
+trust_level = "trusted"
+
+[projects.'d:\智能数据分析平台']
+trust_level = "trusted"
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcp_servers.sequential-thinking]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+
+[mcp_servers.github]
+url = "https://api.githubcopilot.com/mcp/"
+bearer_token_env_var = "GITHUB_PAT_TOKEN"
+
+[mcp_servers.fetch]
+command = 'C:\Users\Administrator\Documents\Codex\2026-05-09\new-chat-3\.fetch-mcp-venv\Scripts\python.exe'
+args = ["-m", "mcp_server_fetch"]
+
+[mcp_servers.sqlite]
+enabled = false
+command = "npx"
+args = ["-y", "@executeautomation/database-server", 'C:\Users\Administrator\Documents\Codex\2026-05-09\new-chat-3\data\learning.sqlite']
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest", "--browser", "msedge", "--isolated", "--headless"]
+
+[mcp_servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", 'C:\Users\Administrator\Documents\Codex', 'C:\Users\Administrator\Documents\Codex\2026-05-09\new-chat-3']
+
+[mcp_servers.tavily]
+url = "https://mcp.tavily.com/mcp/"
+bearer_token_env_var = "TAVILY_API_KEY"
+
+[mcp_servers.apify]
+url = "https://mcp.apify.com"
+bearer_token_env_var = "APIFY_TOKEN"
+
+[mcp_servers.firecrawl]
+command = 'C:\Users\Administrator\AppData\Local\Microsoft\WindowsApps\pwsh.exe'
+args = ["-NoLogo", "-NoProfile", "-Command", '$env:FIRECRAWL_API_KEY = [Environment]::GetEnvironmentVariable("FIRECRAWL_API_KEY","User"); npx -y firecrawl-mcp']
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."browser-use@openai-bundled"]
+enabled = true
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+

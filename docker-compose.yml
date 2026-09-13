@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: data_platform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # MongoDB 文档数据库
+  mongodb:
+    image: mongo:6
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # MinIO 对象存储
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin123456
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  # FastAPI 后端
+  api:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/data_platform
+      REDIS_URL: redis://redis:6379/0
+      MONGO_URL: mongodb://admin:admin123@mongodb:27017
+    depends_on:
+      - postgres
+      - redis
+      - mongodb
+
+  # Django Admin
+  admin:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.admin
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/data_platform
+    depends_on:
+      - postgres
+
+  # React 前端
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  # ClickHouse OLAP 数据库
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3.9.8
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_DB: data_platform
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # Kafka 消息队列 (Redpanda)
+  kafka:
+    image: redpandadata/redpanda:v25.1.9
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://kafka:9092,external://localhost:19092
+      - --mode dev-container
+      - --smp 1
+      - --memory 1G
+      - --overprovisioned
+    volumes:
+      - kafka_data:/var/lib/redpanda/data
+
+  # Kafka UI 管理界面
+  kafka_ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      - kafka
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongo_data:
+  minio_data:
+  clickhouse_data:
+  kafka_data:

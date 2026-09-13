@@ -1,0 +1,410 @@
+/* ============================================
+   智能数据分析平台 - 全局样式
+   创建时间: 2026-04-25
+   作者: 小彩 💫
+   ============================================ */
+
+/* 导入基础样式 */
+@import './variables.css';
+@import './fonts.css';
+@import './animations.css';
+
+/* ========== 全局重置 ========== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+/* ========== 滚动条美化 ========== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* ========== 选中文本样式 ========== */
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+/* ========== 焦点样式 ========== */
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ========== Ant Design 样式覆盖 ========== */
+
+/* 全局背景 */
+.ant-layout {
+  background: var(--color-bg-base) !important;
+  min-height: 100vh;
+}
+
+/* 侧边栏 */
+.ant-layout-sider {
+  background: var(--color-bg-secondary) !important;
+  border-right: 1px solid var(--color-border-light);
+}
+
+.ant-layout-sider-trigger {
+  background: var(--color-bg-tertiary) !important;
+}
+
+/* 顶部栏 */
+.ant-layout-header {
+  background: var(--color-bg-secondary) !important;
+  border-bottom: 1px solid var(--color-border-light);
+  padding: 0 var(--spacing-lg);
+  height: var(--header-height);
+  line-height: var(--header-height);
+}
+
+/* 内容区 */
+.ant-layout-content {
+  padding: var(--spacing-lg);
+  background: transparent;
+}
+
+/* 菜单样式 */
+.ant-menu {
+  background: transparent !important;
+  border: none !important;
+}
+
+.ant-menu-item {
+  margin: 4px 8px !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--color-text-secondary) !important;
+  transition: all var(--transition-normal) !important;
+}
+
+.ant-menu-item:hover {
+  color: var(--color-text-primary) !important;
+  background: var(--color-surface) !important;
+}
+
+.ant-menu-item-selected {
+  color: var(--color-primary) !important;
+  background: var(--color-primary-bg) !important;
+}
+
+.ant-menu-item-selected::after {
+  display: none !important;
+}
+
+/* 卡片样式 - 玻璃拟态 */
+.ant-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  transition: all var(--transition-normal) !important;
+}
+
+.ant-card:hover {
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.ant-card-head {
+  border-bottom: 1px solid var(--color-border-light) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.ant-card-head-title {
+  color: var(--color-text-primary) !important;
+  font-weight: var(--font-weight-semibold) !important;
+}
+
+/* 按钮样式 */
+.ant-btn {
+  border-radius: var(--radius-md) !important;
+  font-weight: var(--font-weight-medium) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.ant-btn-primary {
+  background: var(--gradient-primary) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+}
+
+.ant-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* 输入框样式 */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--color-text-primary) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select-selector:hover,
+.ant-picker:hover {
+  border-color: var(--color-primary) !important;
+}
+
+.ant-input:focus,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px var(--color-primary-bg) !important;
+}
+
+.ant-input::placeholder {
+  color: var(--color-text-tertiary) !important;
+}
+
+/* 表格样式 */
+.ant-table {
+  background: transparent !important;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--color-surface) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+  font-weight: var(--font-weight-semibold) !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--color-border-light) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: var(--color-surface) !important;
+}
+
+/* 标签样式 */
+.ant-tag {
+  border-radius: var(--radius-full) !important;
+  font-weight: var(--font-weight-medium) !important;
+}
+
+/* 统计数字 */
+.ant-statistic-title {
+  color: var(--color-text-secondary) !important;
+  font-size: var(--font-size-sm) !important;
+}
+
+.ant-statistic-content {
+  color: var(--color-text-primary) !important;
+  font-weight: var(--font-weight-bold) !important;
+}
+
+/* 进度条 */
+.ant-progress-text {
+  color: var(--color-text-primary) !important;
+}
+
+/* 模态框 */
+.ant-modal-content {
+  background: var(--color-bg-secondary) !important;
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid var(--color-border-light) !important;
+}
+
+.ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--color-border-light) !important;
+}
+
+.ant-modal-title {
+  color: var(--color-text-primary) !important;
+}
+
+.ant-modal-close-x {
+  color: var(--color-text-secondary) !important;
+}
+
+/* 下拉菜单 */
+.ant-dropdown-menu {
+  background: var(--color-bg-secondary) !important;
+  border: 1px solid var(--color-border-light) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.ant-dropdown-menu-item {
+  color: var(--color-text-primary) !important;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: var(--color-surface) !important;
+}
+
+/* 消息提示 */
+.ant-message-notice-content {
+  background: var(--color-bg-secondary) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* 气泡确认框 */
+.ant-popover-inner {
+  background: var(--color-bg-secondary) !important;
+  border: 1px solid var(--color-border-light) !important;
+}
+
+/* 分页 */
+.ant-pagination-item {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.ant-pagination-item a {
+  color: var(--color-text-primary) !important;
+}
+
+.ant-pagination-item-active {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.ant-pagination-item-active a {
+  color: #fff !important;
+}
+
+/* 加载中 */
+.ant-spin-dot-item {
+  background-color: var(--color-primary) !important;
+}
+
+/* ========== 工具类 ========== */
+
+/* 玻璃卡片 */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+}
+
+/* 发光边框 */
+.glow-border {
+  border: 1px solid var(--color-primary);
+  box-shadow: var(--shadow-glow-primary);
+}
+
+/* 渐变文字 */
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 响应式容器 */
+.container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+/* ========== 响应式断点 ========== */
+
+/* 大屏幕 (≥1920px) */
+@media (min-width: 1920px) {
+  html {
+    font-size: 18px;
+  }
+}
+
+/* 笔记本 (≥1440px) */
+@media (min-width: 1440px) and (max-width: 1919px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* 桌面 (≥1024px) */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  html {
+    font-size: 15px;
+  }
+  
+  .container {
+    padding: 0 var(--spacing-md);
+  }
+}
+
+/* 平板 (≥768px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  html {
+    font-size: 14px;
+  }
+  
+  .container {
+    padding: 0 var(--spacing-sm);
+  }
+}
+
+/* 手机 (≤768px) */
+@media (max-width: 767px) {
+  html {
+    font-size: 14px;
+  }
+  
+  .container {
+    padding: 0 var(--spacing-sm);
+  }
+  
+  .ant-card {
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .ant-card-head {
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+  }
+  
+  .ant-card-body {
+    padding: var(--spacing-md) !important;
+  }
+}
+
+/* 小手机 (≤480px) */
+@media (max-width: 480px) {
+  .ant-statistic-content {
+    font-size: var(--font-size-lg) !important;
+  }
+}

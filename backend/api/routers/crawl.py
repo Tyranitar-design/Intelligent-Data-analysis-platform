@@ -1,6 +1,7 @@
 """
 数据采集路由 - 真实API + 分布式采集
 """
+import logging
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
@@ -23,6 +24,7 @@ AdapterRegistry.auto_discover()
 
 router = APIRouter()
 crawl_service = CrawlService()
+logger = logging.getLogger(__name__)
 
 # ==================== Phase 4.5: 参数 Schema 系统 ====================
 
@@ -167,6 +169,7 @@ from crawlers.ranking_extractor import RankingExtractor
 from crawlers.data_importer import DataImporter
 from crawlers.dataset_service import DatasetService
 from crawlers.dynamic_crawler import DynamicCrawler, DynamicCrawlOptions
+from crawlers.intelligent import AdaptiveScraper, CrawlIntent, IntentType, ScraperConfig
 
 url_crawler = URLCrawler()
 smart_extractor = SmartFieldExtractor()
@@ -174,6 +177,7 @@ ranking_extractor = RankingExtractor()
 data_importer = DataImporter()
 dataset_service = DatasetService()
 dynamic_crawler = DynamicCrawler()
+smart_scraper_v2 = AdaptiveScraper(ScraperConfig())
 
 
 class URLCrawlRequest(BaseModel):
@@ -241,6 +245,21 @@ class SaveDatasetRequest(BaseModel):
     source_type: str = Field("crawl", description="来源类型")
 
 
+class SmartProbeV2Request(BaseModel):
+    """智能爬虫 v2 探测请求"""
+    url: str = Field(..., description="目标 URL")
+
+
+class SmartCrawlV2Request(BaseModel):
+    """智能爬虫 v2 爬取请求"""
+    url: str = Field(..., description="目标 URL")
+    require_auth: bool = Field(False, description="是否需要认证")
+    auth_platform: Optional[str] = Field(None, description="认证平台")
+    pagination: bool = Field(False, description="是否分页")
+    headers: Dict[str, str] = Field(default_factory=dict, description="附加请求头")
+    cookies: Dict[str, str] = Field(default_factory=dict, description="附加 Cookie")
+
+
 @router.post("/url/probe")
 async def probe_url(request: URLProbeRequest):
     """探测 URL 类型和特征"""
@@ -258,6 +277,63 @@ async def probe_url(request: URLProbeRequest):
         "content_length": probe.content_length,
         "error": probe.error,
         "suggested_strategy": url_crawler._choose_strategy(probe) if not probe.error else None,
+    }
+
+
+@router.post("/smart/v2/probe")
+async def smart_probe_v2(request: SmartProbeV2Request):
+    """智能爬虫 v2 探测"""
+    probe = await smart_scraper_v2.probe(request.url)
+    return {
+        "success": True,
+        "url": probe.url,
+        "status_code": probe.status_code,
+        "content_type": probe.content_type,
+        "is_html": probe.is_html,
+        "is_json": probe.is_json,
+        "is_protected": probe.is_protected,
+        "requires_auth": probe.requires_auth,
+        "has_pagination": probe.has_pagination,
+        "intent": probe.detected_intent.value if probe.detected_intent else None,
+        "response_time": probe.response_time,
+        "error": probe.error,
+    }
+
+
+@router.post("/smart/v2/crawl")
+async def smart_crawl_v2(request: SmartCrawlV2Request):
+    """智能爬虫 v2 抓取"""
+    cookies = request.cookies.copy()
+
+    if request.require_auth and request.auth_platform and not cookies:
+        auth_cookies = auth_manager.cookie_store.get_cookies(request.auth_platform)
+        cookies = {c["name"]: c["value"] for c in auth_cookies}
+
+    intent_type = IntentType.AUTHENTICATED if request.require_auth else IntentType.STATIC_CONTENT
+    intent = CrawlIntent(
+        intent_type=intent_type,
+        require_auth=request.require_auth,
+        auth_platform=request.auth_platform,
+        pagination=request.pagination,
+        headers=request.headers,
+        cookies=cookies,
+    )
+
+    result = await smart_scraper_v2.crawl(request.url, intent=intent)
+    return {
+        "success": result.success,
+        "url": result.url,
+        "strategy_used": result.strategy_used,
+        "quality_score": result.quality_score,
+        "duration_ms": result.duration_ms,
+        "error": result.error,
+        "data": result.data,
+        "metadata": result.metadata,
+        "probe": {
+            "status_code": result.probe_result.status_code if result.probe_result else None,
+            "content_type": result.probe_result.content_type if result.probe_result else None,
+            "intent": result.probe_result.detected_intent.value if result.probe_result and result.probe_result.detected_intent else None,
+        },
     }
 
 

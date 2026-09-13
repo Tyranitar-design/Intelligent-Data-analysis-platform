@@ -1,0 +1,154 @@
+# Intent Rules Configuration
+# 意图识别规则配置文件
+
+version: "1.0"
+
+intent_rules:
+  # API 数据规则
+  - name: api_json
+    type: content_type
+    intent: api_data
+    pattern: "application/json"
+    priority: 100
+    enabled: true
+
+  - name: api_xml
+    type: content_type
+    intent: api_data
+    pattern: "application/xml|text/xml"
+    priority: 90
+    enabled: true
+
+  # 静态内容规则
+  - name: static_html
+    type: content_type
+    intent: static_content
+    pattern: "text/html"
+    priority: 50
+    enabled: true
+
+  - name: static_text
+    type: content_type
+    intent: static_content
+    pattern: "text/plain"
+    priority: 40
+    enabled: true
+
+  # 动态内容规则
+  - name: dynamic_spa
+    type: url_pattern
+    intent: dynamic_content
+    pattern: "\\.(vue|react|angular|ng)\\.js"
+    priority: 70
+    enabled: true
+
+  # 受保护内容规则
+  - name: protected_cloudflare
+    type: response_header
+    intent: protected
+    pattern: "cloudflare|cf-ray"
+    priority: 80
+    enabled: true
+    metadata:
+      header_name: "server"
+
+  - name: protected_turnstile
+    type: html_feature
+    intent: protected
+    pattern: "turnstile|challenge"
+    priority: 85
+    enabled: true
+
+  - name: protected_403
+    type: response_status
+    intent: protected
+    pattern: "403"
+    priority: 60
+    enabled: true
+
+  # 需要认证规则
+  - name: auth_cookie
+    type: response_header
+    intent: authenticated
+    pattern: "login|signin|auth"
+    priority: 70
+    enabled: true
+    metadata:
+      header_name: "set-cookie"
+
+  - name: auth_401
+    type: response_status
+    intent: authenticated
+    pattern: "401"
+    priority: 65
+    enabled: true
+
+  # 分页规则
+  - name: pagination_page
+    type: url_pattern
+    intent: paginated
+    pattern: "page=\\d+"
+    priority: 60
+    enabled: true
+
+  - name: pagination_p
+    type: url_pattern
+    intent: paginated
+    pattern: "\\?p=\\d+"
+    priority: 60
+    enabled: true
+
+  - name: pagination_offset
+    type: url_pattern
+    intent: paginated
+    pattern: "offset=\\d+"
+    priority: 60
+    enabled: true
+
+  # 流式数据规则
+  - name: stream_chunked
+    type: response_header
+    intent: streaming
+    pattern: "chunked"
+    priority: 75
+    enabled: true
+    metadata:
+      header_name: "transfer-encoding"
+
+  # 金融数据源
+  - name: finance_eastmoney
+    type: url_pattern
+    intent: api_data
+    pattern: "eastmoney|em\\."
+    priority: 55
+    enabled: true
+
+  - name: finance_sina
+    type: url_pattern
+    intent: api_data
+    pattern: "sina|finance\\.sina"
+    priority: 55
+    enabled: true
+
+  # 新闻数据源
+  - name: news_netease
+    type: url_pattern
+    intent: dynamic_content
+    pattern: "163\\.com|netease"
+    priority: 50
+    enabled: true
+
+  # 电商数据源
+  - name: ecommerce_jd
+    type: url_pattern
+    intent: dynamic_content
+    pattern: "jd\\.com"
+    priority: 50
+    enabled: true
+
+  - name: ecommerce_taobao
+    type: url_pattern
+    intent: dynamic_content
+    pattern: "taobao|tmall"
+    priority: 50
+    enabled: true

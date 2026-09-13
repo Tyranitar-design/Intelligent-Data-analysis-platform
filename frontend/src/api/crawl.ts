@@ -1,5 +1,16 @@
 import apiClient from './client'
 
+export const extractApiError = (error: any) => {
+  const data = error?.response?.data
+  return (
+    data?.detail ||
+    data?.error?.message ||
+    data?.message ||
+    error?.message ||
+    '请求失败'
+  )
+}
+
 // ==================== 数据源 ====================
 export const sourceApi = {
   list: () => apiClient.get('/crawl/sources'),
@@ -48,6 +59,8 @@ export const crawlApi = {
   // ==================== Phase 4.6: 智能采集 ====================
   smartExtract: (data: { url: string; requirement: string; dynamic?: boolean; mode?: string; wait_for?: string; auto_scroll?: boolean; scroll_count?: number; click_selector?: string; click_count?: number }) =>
     apiClient.post('/crawl/smart/extract', data),
+  smartProbeV2: (url: string) => apiClient.post('/crawl/smart/v2/probe', { url }),
+  smartCrawlV2: (data: any) => apiClient.post('/crawl/smart/v2/crawl', data),
 
   // ==================== Phase 4.6: 多格式导入 ====================
   importFile: (data: { file_path: string; file_type?: string; sheet_name?: any; encoding?: string; delimiter?: string; table_index?: number }) =>

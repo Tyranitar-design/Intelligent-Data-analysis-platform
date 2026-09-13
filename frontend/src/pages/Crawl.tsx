@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +18,7 @@ import {
 } from 'lucide-react'
 import DynamicForm from '@/components/DynamicForm'
 import AuthManager from '@/components/AuthManager'
-import { crawlApi } from '@/api/crawl'
+import { crawlApi, extractApiError } from '@/api/crawl'
 import { dataBrowserApi } from '@/api/data'
 import { useTaskStore } from '@/stores/taskStore'
 import { useAppStore } from '@/stores/appStore'
@@ -32,6 +33,7 @@ const STATUS_MAP: Record<string, { icon: any; class: string }> = {
 }
 
 export default function CrawlPage() {
+  const navigate = useNavigate()
   const { tasks, setTasks, updateTask, adapters, setAdapters } = useTaskStore()
   const { addNotification } = useAppStore()
   const [loading, setLoading] = useState(true)
@@ -58,6 +60,10 @@ export default function CrawlPage() {
   const [urlProbeResult, setUrlProbeResult] = useState<any>(null)
   const [urlCrawling, setUrlCrawling] = useState(false)
   const [urlCrawlResult, setUrlCrawlResult] = useState<any>(null)
+  const [useSmartV2, setUseSmartV2] = useState(true)
+  const [urlDatasetName, setUrlDatasetName] = useState('')
+  const [urlDatasetDesc, setUrlDatasetDesc] = useState('')
+  const [savingUrlDataset, setSavingUrlDataset] = useState(false)
 
   // 分页爬取
   const [paginatedUrl, setPaginatedUrl] = useState('')
@@ -149,10 +155,12 @@ export default function CrawlPage() {
     setUrlProbing(true)
     setUrlProbeResult(null)
     try {
-      const res = await crawlApi.urlProbe(urlInput.trim())
+      const res = useSmartV2
+        ? await crawlApi.smartProbeV2(urlInput.trim())
+        : await crawlApi.urlProbe(urlInput.trim())
       setUrlProbeResult(res.data)
     } catch (e: any) {
-      addNotification({ type: 'error', title: '探测失败', description: e.message })
+      addNotification({ type: 'error', title: '探测失败', description: extractApiError(e) })
     } finally {
       setUrlProbing(false)
     }
@@ -169,18 +177,65 @@ export default function CrawlPage() {
       if (useAuth && selectedAuthPlatform) {
         payload.use_auth = true
         payload.auth_platform = selectedAuthPlatform
+        payload.require_auth = true
       }
-      const res = await crawlApi.urlCrawl(payload)
+      const res = useSmartV2
+        ? await crawlApi.smartCrawlV2(payload)
+        : await crawlApi.urlCrawl(payload)
       setUrlCrawlResult(res.data)
+      setUrlDatasetName(`URL采集_${new Date().toISOString().slice(0, 10)}`)
+      setUrlDatasetDesc(`从 ${urlInput.trim()} 采集`)
       addNotification({
         type: res.data?.success ? 'success' : 'error',
         title: res.data?.success ? '爬取成功' : '爬取失败',
-        description: res.data?.message || '',
+        description: res.data?.message || res.data?.error || '',
       })
     } catch (e: any) {
-      addNotification({ type: 'error', title: '爬取失败', description: e.message })
+      addNotification({ type: 'error', title: '爬取失败', description: extractApiError(e) })
     } finally {
       setUrlCrawling(false)
+    }
+  }
+
+  const normalizedUrlRows = useMemo(() => {
+    const data = urlCrawlResult?.data
+    if (Array.isArray(data)) return data
+    if (data && typeof data === 'object') return [data]
+    return []
+  }, [urlCrawlResult])
+
+  const normalizedUrlColumns = useMemo(() => {
+    if (!normalizedUrlRows.length) return []
+    const firstRow = normalizedUrlRows[0]
+    return Object.keys(firstRow)
+  }, [normalizedUrlRows])
+
+  const saveUrlDataset = async () => {
+    if (!normalizedUrlRows.length || !urlDatasetName.trim()) return
+    setSavingUrlDataset(true)
+    try {
+      const res = await crawlApi.saveDataset({
+        name: urlDatasetName,
+        description: urlDatasetDesc,
+        columns: normalizedUrlColumns,
+        data: normalizedUrlRows,
+        source_url: urlInput.trim(),
+        source_type: useSmartV2 ? 'smart_crawl_v2' : 'crawl',
+      })
+      if (res.data?.success) {
+        addNotification({
+          type: 'success',
+          title: '保存成功',
+          description: `${res.data.message}，现在可以在“数据集”或“数据浏览”中继续查看`,
+        })
+        navigate('/datasets')
+      } else {
+        addNotification({ type: 'error', title: '保存失败', description: res.data?.error || '保存失败' })
+      }
+    } catch (e: any) {
+      addNotification({ type: 'error', title: '保存失败', description: extractApiError(e) })
+    } finally {
+      setSavingUrlDataset(false)
     }
   }
 
@@ -203,7 +258,7 @@ export default function CrawlPage() {
         description: `共 ${res.data?.pages?.total || 0} 页,获取 ${res.data?.count || 0} 条数据`,
       })
     } catch (e: any) {
-      addNotification({ type: 'error', title: '分页爬取失败', description: e.message })
+      addNotification({ type: 'error', title: '分页爬取失败', description: extractApiError(e) })
     } finally {
       setUrlCrawling(false)
     }
@@ -237,7 +292,7 @@ export default function CrawlPage() {
         description: `获取 ${res.data?.count || 0} 条数据`,
       })
     } catch (e: any) {
-      addNotification({ type: 'error', title: '采集失败', description: e.message })
+      addNotification({ type: 'error', title: '采集失败', description: extractApiError(e) })
     } finally {
       setSubmitting(false)
     }
@@ -261,7 +316,7 @@ export default function CrawlPage() {
         description: `获取 ${res.data?.count || 0} 条数据`,
       })
     } catch (e: any) {
-      addNotification({ type: 'error', title: '采集失败', description: e.message })
+      addNotification({ type: 'error', title: '采集失败', description: extractApiError(e) })
     } finally {
       setJustoneCrawling(false)
     }
@@ -295,7 +350,7 @@ export default function CrawlPage() {
         description: res.data?.message || '',
       })
     } catch (e: any) {
-      addNotification({ type: 'error', title: '智能抽取失败', description: e.message })
+      addNotification({ type: 'error', title: '智能抽取失败', description: extractApiError(e) })
     } finally {
       setSmartLoading(false)
     }
@@ -585,14 +640,19 @@ export default function CrawlPage() {
                                   source_type: 'crawl',
                                 })
                                 if (res.data?.success) {
-                                  addNotification({ type: 'success', title: '保存成功', description: res.data.message })
+                                  addNotification({
+                                    type: 'success',
+                                    title: '保存成功',
+                                    description: `${res.data.message}，现在可以在“数据集”中查看真实数据`,
+                                  })
                                   setDatasetName('')
                                   setDatasetDesc('')
+                                  navigate('/datasets')
                                 } else {
                                   addNotification({ type: 'error', title: '保存失败', description: res.data?.error || '' })
                                 }
                               } catch (e: any) {
-                                addNotification({ type: 'error', title: '保存失败', description: e.message })
+                                addNotification({ type: 'error', title: '保存失败', description: extractApiError(e) })
                               } finally {
                                 setSavingDataset(false)
                               }
@@ -706,8 +766,31 @@ export default function CrawlPage() {
                         <Badge>{urlProbeResult.suggested_strategy}</Badge>
                       </div>
                     )}
+                    {urlProbeResult.intent && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        <span className="text-muted-foreground">识别意图:</span>
+                        <Badge variant="outline">{urlProbeResult.intent}</Badge>
+                      </div>
+                    )}
                   </div>
                 )}
+
+                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">智能爬虫 v2</p>
+                    <p className="text-xs text-muted-foreground">
+                      使用新的智能探测、自适应策略和质量评分链路
+                    </p>
+                  </div>
+                  <input
+                    id="use-smart-v2"
+                    type="checkbox"
+                    checked={useSmartV2}
+                    onChange={(e) => setUseSmartV2(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                </div>
 
                 {/* 爬取按钮 */}
                 <Button
@@ -747,12 +830,66 @@ export default function CrawlPage() {
                 ) : (
                   <ScrollArea className="h-80">
                     <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">{urlCrawlResult.message}</p>
-                      <p className="text-xs text-muted-foreground">
-                        耗时 {urlCrawlResult.elapsed?.toFixed(2)}s
+                      <p className="text-sm text-muted-foreground">
+                        {urlCrawlResult.message || urlCrawlResult.error || '爬取完成'}
                       </p>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        {typeof urlCrawlResult.elapsed === 'number' && (
+                          <span>耗时 {urlCrawlResult.elapsed.toFixed(2)}s</span>
+                        )}
+                        {typeof urlCrawlResult.duration_ms === 'number' && (
+                          <span>耗时 {(urlCrawlResult.duration_ms / 1000).toFixed(2)}s</span>
+                        )}
+                        {urlCrawlResult.strategy_used && (
+                          <span>策略 {urlCrawlResult.strategy_used}</span>
+                        )}
+                        {typeof urlCrawlResult.quality_score === 'number' && (
+                          <span>质量 {(urlCrawlResult.quality_score * 100).toFixed(0)}%</span>
+                        )}
+                      </div>
+                      {urlCrawlResult.success && normalizedUrlRows.length > 0 && (
+                        <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                          <div className="space-y-1">
+                            <Label className="text-xs">数据集名称</Label>
+                            <Input
+                              value={urlDatasetName}
+                              onChange={(e) => setUrlDatasetName(e.target.value)}
+                              placeholder="输入数据集名称"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">描述</Label>
+                            <Input
+                              value={urlDatasetDesc}
+                              onChange={(e) => setUrlDatasetDesc(e.target.value)}
+                              placeholder="输入描述"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            className="w-full"
+                            disabled={savingUrlDataset || !urlDatasetName.trim()}
+                            onClick={saveUrlDataset}
+                          >
+                            {savingUrlDataset ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <Database className="w-3 h-3 mr-1" />
+                            )}
+                            保存为数据集并查看
+                          </Button>
+                          {normalizedUrlRows.length >= 100 && (
+                            <p className="text-xs text-muted-foreground">
+                              当前仅展示部分采集结果，保存后可在数据浏览页分页查看完整内容。
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <Separator />
-                      {urlCrawlResult.data?.slice(0, 50).map((item: any, i: number) => (
+                      {normalizedUrlRows
+                        .filter(Boolean)
+                        .slice(0, 50)
+                        .map((item: any, i: number) => (
                         <div key={i} className="border rounded p-3 text-sm bg-muted/20">
                           {Object.entries(item).map(([k, v]) => (
                             <div key={k} className="flex gap-2 py-0.5">

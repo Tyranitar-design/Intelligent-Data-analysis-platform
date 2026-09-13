@@ -1,0 +1,49 @@
+# FastAPI 核心
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# 数据库
+sqlalchemy==2.0.28
+psycopg2-binary==2.9.9
+redis==5.1.0
+pymongo==4.6.1
+
+# 数据处理
+pandas==2.2.1
+numpy==1.26.4
+scipy==1.12.0
+
+# 机器学习
+scikit-learn==1.4.1
+xgboost==2.0.3
+lightgbm==4.3.0
+
+# 深度学习
+torch==2.2.1
+transformers==4.38.2
+
+# 数据可视化
+matplotlib==3.8.3
+plotly==5.19.0
+seaborn==0.13.2
+
+# 爬虫
+scrapy==2.11.2
+playwright==1.42.0
+beautifulsoup4==4.12.3
+requests==2.31.0
+
+# 数据挖掘
+mlxtend==0.23.0
+pyod==1.1.6
+
+# 工具
+python-dotenv==1.0.1
+pydantic==2.6.3
+celery==5.3.6
+flower==2.0.1
+
+# 测试
+pytest==8.1.1
+pytest-asyncio==0.23.5

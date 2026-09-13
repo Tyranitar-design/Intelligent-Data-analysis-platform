@@ -1,0 +1,19 @@
+version: "1.0"
+type: spec
+name: harness-engineering
+title: "Harness Engineering 规范"
+status: current
+author: Claude
+created: "2026-05-09"
+updated: "2026-05-09"
+
+summary: |
+  工程化实践规范 - 接口设计、配置管理、错误处理、数据模型、测试、可观测性
+
+tags:
+  - engineering
+  - best-practices
+  - architecture
+
+files:
+  - specs.md

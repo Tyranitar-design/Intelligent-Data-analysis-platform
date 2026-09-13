@@ -1,0 +1,127 @@
+# -*- coding: utf-8 -*-
+# Intelligent Scraper v2.0 - 配置文件示例
+# 复制此文件为 config.yaml 并根据需求修改
+
+version: "2.0"
+project: intelligent-scraper
+
+# 爬虫基础配置
+scraper:
+  # 默认超时时间（秒）
+  timeout: 60
+
+  # 最大并发请求数
+  max_concurrency: 10
+
+  # 请求间隔（秒）
+  request_delay: 1.0
+
+  # 重试次数
+  max_retries: 3
+
+  # 日志级别
+  log_level: INFO
+
+  # 用户代理
+  user_agent: "IntelligentScraper/2.0 (+https://example.com/bot)"
+
+# 策略配置
+strategies:
+  preferred_order:
+    - httpx
+    - scrapling
+    - crawl4ai
+    - playwright
+
+  httpx:
+    timeout: 30
+    follow_redirects: true
+    max_redirects: 5
+    verify_ssl: true
+
+  scrapling:
+    timeout: 45
+    wait_for_selectors: []
+
+  crawl4ai:
+    timeout: 60
+    high_quality: false
+    extract_depth: 2
+
+  playwright:
+    timeout: 90
+    headless: true
+    browser_type: chromium
+    viewport:
+      width: 1920
+      height: 1080
+
+# 熔断器配置
+circuit_breaker:
+  failure_threshold: 5
+  success_threshold: 2
+  timeout_seconds: 60.0
+  half_open_max_calls: 3
+
+# 重试配置
+retry:
+  max_attempts: 3
+  base_delay: 1.0
+  max_delay: 30.0
+  exponential_base: 2.0
+  jitter: true
+
+# Intent Engine 配置
+intent_engine:
+  enable_learning: true
+  cache_size: 1000
+  cache_ttl: 3600
+
+# Quality Assessor 配置
+quality_assessor:
+  min_content_length: 100
+  min_quality_score: 0.5
+  dimensions:
+    completeness: 0.25
+    validity: 0.30
+    freshness: 0.20
+    consistency: 0.25
+
+# 可观测性配置
+observability:
+  # 日志配置
+  logging:
+    format: json
+    output: stdout
+    rotation:
+      max_bytes: 10485760  # 10MB
+      backup_count: 5
+
+  # Prometheus 配置
+  prometheus:
+    enabled: false
+    port: 9090
+
+  # OpenTelemetry 配置
+  opentelemetry:
+    enabled: false
+    service_name: intelligent-scraper
+    endpoint: ""  # OTLP 接收端点
+
+# 代理配置
+proxy:
+  enabled: false
+  http_proxy: ""
+  https_proxy: ""
+  no_proxy: "localhost,127.0.0.1"
+
+# 认证配置
+auth:
+  cookies: {}
+  headers: {}
+
+# 速率限制
+rate_limit:
+  enabled: false
+  requests_per_second: 10
+  burst: 20

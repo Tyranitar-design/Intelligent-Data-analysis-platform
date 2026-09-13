@@ -293,6 +293,52 @@ def list_capabilities() -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# 物化
+# --------------------------------------------------------------------------- #
+
+
+@router.post("/jobs/{job_id}/materialize", summary="把采集结果物化成数据集")
+def materialize_collect_job(
+    job_id: int,
+    name: str | None = Query(None, description="数据集名称"),
+    apply_pii: bool = Query(True, description="是否执行 PII 字段级最小化（默认开启）"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """把采集任务的条目汇总成可分析的数据集。
+
+    过程：规范化 → PII 最小化 → 落成真实表 → 记录字段级血缘。
+    """
+    from pipeline.storage import DatasetMaterializer
+
+    materializer = DatasetMaterializer(db)
+    try:
+        dataset = materializer.materialize_job(
+            job_id, name=name, apply_pii=apply_pii
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return dataset.to_dict()
+
+
+@router.get("/datasets/{dataset_id}/preview", summary="预览数据集内容")
+def preview_dataset(
+    dataset_id: int,
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    """按页读取物化后的数据集内容。"""
+    from pipeline.storage import DatasetMaterializer
+
+    materializer = DatasetMaterializer(db)
+    try:
+        return materializer.read_dataset(dataset_id, limit=limit, offset=offset)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+# --------------------------------------------------------------------------- #
 # 辅助
 # --------------------------------------------------------------------------- #
 

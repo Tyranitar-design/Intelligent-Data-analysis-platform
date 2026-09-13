@@ -16,6 +16,7 @@ from api.models.site_profile import SiteProfile
 from api.models.compliance_verdict import ComplianceVerdict
 from api.models.collect_plan import CollectPlan
 from api.models.collect_job import CollectItem, CollectJob, CollectTask
+from api.models.audit_log import AuditLog
 
 __all__ = [
     "Base",
@@ -32,4 +33,5 @@ __all__ = [
     "CollectJob",
     "CollectTask",
     "CollectItem",
+    "AuditLog",
 ]

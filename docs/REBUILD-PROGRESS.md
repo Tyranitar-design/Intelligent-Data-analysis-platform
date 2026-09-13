@@ -543,16 +543,111 @@ GET  /api/v1/collect/registry    已注册能力清单
 
 ---
 
-## 下一步：P3 数据管道
+## 阶段 P3 · 数据管道
 
-目标：`backend/pipeline/`
+状态：**已完成 ✅**
+完成：2026-09-14
 
-- `pipeline/normalize.py` —— 统一字段类型系统与清洗规则
-- `pipeline/storage.py` —— 三层存储适配（原始层对象存储 / 规范化层 PG / 分析层）
-- `pipeline/lineage.py` —— 字段级血缘
-- `pipeline/pii.py` —— PII 字段级最小化（哈希 / 分箱 / 泛化）
-- 建表：`dataset` 扩展、`audit_log`
-- 目标：把 `CollectItem` 汇总为可分析的 `Dataset`，并保留可追溯的血缘链
+目标：把采集条目变成可分析资产。
+
+```
+collect_items (原始 payload)
+    → normalize   统一八种类型
+    → pii         字段级最小化
+    → storage     物化成真实表 + Dataset 记录
+    → lineage     字段级血缘
+```
+
+### 交付内容
+
+```
+backend/pipeline/
+  __init__.py
+  normalize.py    类型推断、清洗、转换（八种统一类型）
+  pii.py          PII 检测与最小化（哈希 / 打码 / 分箱 / 泛化 / 丢弃）
+  lineage.py      字段级血缘构建与回溯
+  storage.py      数据集物化、读取、清理
+backend/api/models/audit_log.py   新增表 audit_logs
+backend/api/models/dataset.py     扩展：user_id 改可空 + collect_job_id / profile_id
+                                  / lineage / pii_policy / table_name
+backend/api/routers/collect.py    新增 2 个端点
+backend/tests/unit/test_pipeline.py                 57 个单元测试
+backend/tests/integration/test_pipeline_materialize.py  4 个集成测试
+```
+
+### 关键实现点
+
+**统一八种类型**：`text / int / float / bool / datetime / url / json / list`。
+后续分析、检索、导出层只面对这八种，不必各自处理"价格是 ¥1,234.56 还是 1234.56"。
+
+**PII 默认最小化**。默认动作是字段级处理而非整体弃采——真实数据集里个人数据
+往往只占少数字段，因为一个作者名丢掉整包数据是不划算的。策略：
+
+```
+直接标识符（邮箱/手机/身份证/银行卡/姓名） → 哈希（保留可关联性且不可逆）
+位置信息（地址）                          → 泛化到城市粒度
+网络标识（IP）                            → 打码保留首尾
+准标识符数值（年龄）                      → 区间分箱
+```
+
+检测先看格式（强证据）再看字段名（弱证据），不做过度推断——把一切当个人数据
+会让平台失去可用性。
+
+**物化成真实表**而非仅存 JSON，让分析层能直接 SQL 读取。表名 `ds_{dataset_id}`，
+删除数据集时一并 DROP。中文列名用双引号保留，便于直接阅读查询结果。
+
+**字段级血缘**：
+
+```
+dataset.field ← extractor_rule ← site_profile ← source_url
+```
+
+实测可追溯到 `json-ld:$.headline` 这一级的提取规则。
+
+### 本轮修复的问题
+
+| # | 问题 | 影响 |
+|---|---|---|
+| 1 | refactor 后的 `Dataset` 模型丢失 `table_name` 列 | 物化模块依赖该字段，直接 AttributeError |
+| 2 | f-string 表达式内含反斜杠转义 | 语法错误，模块无法导入 |
+| 3 | `drop_pii` 默认 False，PII 最小化从不执行 | 与"默认做字段级处理"原则矛盾，改为 `apply_pii=True` 默认开启 |
+| 4 | 全角映射表只覆盖数字与符号，漏掉字母 | `１２３ＡＢＣ` 无法归一为 `123ABC` |
+| 5 | 千分位逗号截断数字匹配 | `¥1,234.56` 被解析成 `1.0` |
+| 6 | 测试清理顺序违反外键依赖，事务整体回滚 | "看似清理了其实一条没删"，残留数据让后续测试全部误判为已采集 |
+
+第 6 项虽是测试代码问题，但暴露了一个通用陷阱：**SQLite 的外键约束会让整条事务
+静默回滚**，表现为"操作没报错但数据没删"。删除多表数据时必须按依赖顺序从叶到根。
+
+### 验证结果
+
+```
+$ pytest tests/unit/test_pipeline.py tests/integration/ -q
+73 passed
+```
+
+单元测试 57 个（规范化 20 / PII 20 / 血缘 4 / 参数化展开），
+集成测试 16 个（判别 9 / 采集 3 / 物化 4）。
+
+物化链路实测：采集 3 条 → 规范化 → `author` 被识别为 PII 并哈希化 →
+落成 `ds_N` 表 → 读取返回 3 行 → 血缘可追溯 → 删除数据集时物理表一并清理。
+
+端点数 106 → 108：
+
+```
+POST /api/v1/collect/jobs/{job_id}/materialize   物化采集结果为数据集
+GET  /api/v1/collect/datasets/{id}/preview       预览数据集内容
+```
+
+---
+
+## 下一步：P4 分析层接入
+
+目标：让物化后的数据集直接进入现有分析链路。
+
+- `analysis/`、`mining/`、`ml/`、`dl/` 统一以 `dataset_id` 为输入
+- 统一分析输出格式 `{result, charts}`
+- 接通报告导出（CSV / JSON / Excel / PDF）
+- 目标：端到端跑通「输入 URL → 画像 → 判定 → 采集 → 入库 → 分析 → 报告」
 
 ---
 

@@ -168,7 +168,7 @@ export default function DatasetsPage() {
             </div>
           ) : preview && preview.rows.length > 0 ? (
             <div className="max-h-[440px] overflow-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[640px] text-left text-xs">
                 <thead className="sticky top-0 bg-card/95 backdrop-blur">
                   <tr className="text-muted-foreground">
                     {preview.columns.map((col) => (

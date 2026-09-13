@@ -445,8 +445,8 @@ function FieldsCard({ fields }: { fields: FieldSpec[] }) {
         <span className="text-xs text-muted-foreground">{fields.length} 个</span>
       </div>
 
-      <div className="max-h-[420px] overflow-y-auto">
-        <table className="w-full text-left text-xs">
+      <div className="max-h-[420px] overflow-auto">
+        <table className="w-full min-w-[720px] text-left text-xs">
           <thead className="sticky top-0 bg-card/95 backdrop-blur">
             <tr className="text-muted-foreground">
               <th className="px-5 py-2 font-medium">字段</th>

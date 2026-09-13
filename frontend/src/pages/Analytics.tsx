@@ -284,7 +284,7 @@ function ResultTables({ payload }: { payload: AnalysisPayload }) {
             <h3 className="text-sm font-semibold">数值字段统计</h3>
           </div>
           <div className="max-h-[380px] overflow-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[520px] text-left text-xs">
               <thead className="sticky top-0 bg-card/95 backdrop-blur">
                 <tr className="text-muted-foreground">
                   <th className="px-4 py-2 font-medium">字段</th>

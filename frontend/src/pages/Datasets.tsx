@@ -11,6 +11,7 @@ import { Database, Loader2, RefreshCw, Table2 } from 'lucide-react'
 
 import apiClient from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/visual/Skeleton'
 import { cn } from '@/lib/utils'
 
 interface TableRow {
@@ -83,6 +84,21 @@ export default function DatasetsPage() {
           刷新
         </Button>
       </div>
+
+      {loading && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="glass rounded-xl p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-4 w-4 rounded" />
+              </div>
+              <Skeleton className="mb-2 h-6 w-16" />
+              <Skeleton className="h-2.5 w-24" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {tables.length === 0 && !loading ? (
         <div className="glass rounded-xl px-5 py-14 text-center">

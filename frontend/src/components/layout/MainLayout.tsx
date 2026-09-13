@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 
 import { Toaster } from '@/components/ui/sonner'
+import ParticleField from '@/components/visual/ParticleField'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -96,7 +97,9 @@ export default function MainLayout() {
   const isDark = theme === 'dark'
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="relative flex min-h-screen bg-background text-foreground">
+      <ParticleField />
+
       {/* ---------------- 侧边栏 ---------------- */}
       <aside
         className={cn(
@@ -191,7 +194,7 @@ export default function MainLayout() {
       </aside>
 
       {/* ---------------- 主区 ---------------- */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <header className="glass sticky top-0 z-20 flex h-16 items-center justify-between border-b px-5">
           <div className="flex min-w-0 items-center gap-3">
             <h1 className="text-[0.95rem] font-semibold tracking-tight">

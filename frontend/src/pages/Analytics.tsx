@@ -14,6 +14,7 @@ import { Activity, Loader2, Play } from 'lucide-react'
 import apiClient from '@/api/client'
 import echarts, { CHART_THEME, type EChartsOption } from '@/lib/echarts'
 import { Button } from '@/components/ui/button'
+import { SkeletonChart } from '@/components/visual/Skeleton'
 import { cn } from '@/lib/utils'
 
 interface TableRow {
@@ -176,6 +177,13 @@ export default function AnalyticsPage() {
           {error && <span className="text-xs text-destructive">{error}</span>}
         </div>
       </section>
+
+      {loading && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <SkeletonChart />
+          <SkeletonChart />
+        </section>
+      )}
 
       {payload && (
         <>

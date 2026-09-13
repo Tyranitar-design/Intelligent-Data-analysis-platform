@@ -903,12 +903,52 @@ chart-vendor          578.12 kB  (gzip 194.28 kB)
 | 3 | 代理只配了 `/api`，未含 `/capabilities` | 首页请求能力状态会打到 Vite 自己身上并 404 |
 | 4 | `components/MainLayout.tsx`（452 行 antd 版）无引用仍存在于源码 | 它是 antd 的唯一使用者，不清掉就无法移除依赖 |
 
+### 运行验证（已完成）
+
+新增 `backend/scripts/verify_stack.py`：启动前后端 → 轮询等待就绪 → 验证端点
+→ 验证代理 → 清理。
+
+实测结果：
+
+```
+[1] starting backend (:8000) ...
+  backend ready
+[2] backend endpoints
+  OK      200  /health
+  OK      200  /capabilities
+  OK      200  /api/v1/data/overview
+  OK      200  /api/v1/collect/jobs
+  OK      200  /api/v1/collect/registry
+  OK      200  /api/v1/analytics/types
+  OK      200  /api/v1/discover/profiles
+  OK      200  /mcp
+[3] starting frontend (:5174) ...
+  frontend ready
+[4] frontend page and proxy
+  OK      200  / (index page)
+  OK      200  /capabilities (via proxy)
+  OK      200  /api/v1/data/overview (via proxy)
+  OK      200  /api/v1/analytics/types (via proxy)
+RESULT: all checks passed
+```
+
+排查过程中发现并修复的三个环境问题：
+
+1. **轮询替代固定 sleep**。后端冷启动需 15~25 秒（依赖多），固定 sleep 要么浪费
+   时间要么不够——这是最初几次验证"看起来后端没起来"的真实原因。
+2. **Vite 默认只监听 IPv6**：`[::1]:5174` 通而 `127.0.0.1:5174` 不通。给 vite 传
+   `--host 127.0.0.1` 可解。浏览器访问 localhost 不受影响（双栈尝试），
+   但脚本与 curl 探测会踩坑。
+3. **npm 派生 vite 需要杀进程树**：只 terminate npm 会留下孤儿 vite 继续占端口，
+   下次启动报 "Port already in use"。Windows 下改用 `taskkill /F /T`。
+4. **脚本输出必须用 ASCII 标记**：Windows 控制台默认 GBK，勾叉类符号会触发
+   `UnicodeEncodeError` 直接中断脚本。
+
 ### 待办
 
-- [ ] 运行验证：启动前后端，实测六页数据链路
-- [ ] 视觉打磨：动效序列、骨架屏、空态插画、3D/粒子元素接入
+- [ ] 视觉打磨：动效序列、骨架屏、空态插画、粒子元素接入
 - [ ] 响应式适配：小屏侧边栏抽屉化、表格横向滚动
-- [ ] `tsconfig` 排除 `_legacy` 目录，为 future 的 `tsc` 类型检查铺路
+- [ ] `tsconfig` 排除 `_legacy` 目录，为将来的 `tsc` 类型检查铺路
 
 ### 归档说明
 

@@ -837,18 +837,84 @@ Hermes 侧配置 MCP 端点 `http://<host>:8000/mcp`（streamable-http），
 
 ---
 
-## 下一步：P6 企业级前端
+## 阶段 P6 · 企业级前端
 
-目标：把前端从"能用"做到"能展示"。
+状态：**进行中**（核心重构已完成，待视觉打磨与运行验证）
+开始：2026-09-14
 
-- 体积治理：主包当前 5.35 MB，移除 `antd`（与 shadcn/ui 重复）、
-  图表库收敛为 ECharts 单一（现为 plotly + echarts + recharts 三套并存）
-- 六个核心页面：工作台、站点分析、采集任务、数据集、数据分析、报告
-- 设计语言：深色科技感、3D/动效手法（参考 `D:\网站复刻实战项目` 的技术手法
-  与 `D:\UI设计库网站集合` 的组件库）
-- 保留并可复用的现有资产：`components/cyber/*` 八个赛博视图、
-  `ParticleNetwork.tsx`、`styles/cyber.css`
-- 目标：可作 GitHub 展示与简历项目
+### 已交付
+
+```
+frontend/src/index.css                     设计系统（替换 shadcn 变量 + 组件类 + 动效）
+frontend/src/components/layout/MainLayout.tsx  侧边栏 + 顶栏 + 内容区
+frontend/src/pages/
+  Dashboard.tsx    工作台（概览指标 + 最近任务 + 快捷入口）
+  Discover.tsx     站点分析（核心页：URL 输入 → 画像 + 判定 + 字段 + 策略）
+  Collect.tsx      采集任务（三层视图 + 一键物化）
+  Datasets.tsx     数据集（列表 + 数据预览）
+  Analytics.tsx    数据分析（类型选择 + ECharts 渲染 + 结果表）
+  Reports.tsx      报告（生成 + 预览 + 复制 + 导出）
+frontend/src/lib/echarts.ts                ECharts 按需注册
+```
+
+### 体积治理（成果显著）
+
+| 阶段 | 主包 | gzip |
+|---|---|---|
+| 治理前 | 5,349 KB | 1,614 KB |
+| 移除 antd / plotly / recharts | 1,527 KB | 501 KB |
+| ECharts 改按需注册 | 1,068 KB | 352 KB |
+| 配置 manualChunks 分包 | 见下 | — |
+
+最终产物：
+
+```
+index.html              0.80 kB  (gzip   0.52 kB)
+index.css              96.07 kB  (gzip  15.57 kB)
+motion-vendor          96.16 kB  (gzip  31.76 kB)
+react-vendor          164.04 kB  (gzip  53.54 kB)
+index（业务代码）      230.07 kB  (gzip  72.48 kB)
+chart-vendor          578.12 kB  (gzip 194.28 kB)
+```
+
+**首屏只需 587 KB（gzip 174 KB）**，比治理前降低约 89%。
+图表库独立成块，只在访问分析页时加载，且其哈希不随业务代码变更、可长期缓存。
+
+治理的关键发现：**antd 与 plotly 各自只被 1 个文件引用，却带来约 4.5 MB**。
+先摸清真实引用面再动手，比按体积猜测有效得多。
+
+### 设计系统
+
+替换 shadcn/ui 的 CSS 变量即可让 40+ 个组件整体换装——这是成本最低、
+一致性最高的换肤方式。视觉方向：深空底色（222 系深灰，非纯黑）+ 青蓝主色（186）
++ 琥珀强调（38）。
+
+提供的基础设施：`.glass` 玻璃面板、`.glass-hover` 悬停透光、`.grid-bg` 网格底纹、
+`.aurora` 顶部光晕、`.mono-tag` 等宽数据标签、`.badge-*` 状态徽标、
+`.animate-rise` 入场、`.animate-scan` 扫描线、`.animate-pulse-soft` 呼吸。
+并遵守 `prefers-reduced-motion`。
+
+### 本轮修复的问题
+
+| # | 问题 | 影响 |
+|---|---|---|
+| 1 | `themeStore` 只设 `data-theme` 属性，而 Tailwind 用 `dark:` class 变体 | 深色变量与 `dark:` 样式全部不生效 |
+| 2 | `vite.config.ts` dev 端口写 3000，启动脚本用 5173 | 端口不一致，排查困难 |
+| 3 | 代理只配了 `/api`，未含 `/capabilities` | 首页请求能力状态会打到 Vite 自己身上并 404 |
+| 4 | `components/MainLayout.tsx`（452 行 antd 版）无引用仍存在于源码 | 它是 antd 的唯一使用者，不清掉就无法移除依赖 |
+
+### 待办
+
+- [ ] 运行验证：启动前后端，实测六页数据链路
+- [ ] 视觉打磨：动效序列、骨架屏、空态插画、3D/粒子元素接入
+- [ ] 响应式适配：小屏侧边栏抽屉化、表格横向滚动
+- [ ] `tsconfig` 排除 `_legacy` 目录，为 future 的 `tsc` 类型检查铺路
+
+### 归档说明
+
+旧页面（17 个）与旧设计资产移入 `src/pages/_legacy/` 与 `src/components/_legacy/`，
+保留但不参与构建。其中 `components/cyber/*` 八个赛博视图与 `ParticleNetwork.tsx`
+是后续视觉打磨的素材来源——移除依赖时才需要处理它们在 `_legacy` 里的 recharts 引用。
 
 ---
 

@@ -1,257 +1,249 @@
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+/**
+ * 分析报告
+ * ========
+ *
+ * 生成 → 预览 → 导出。
+ *
+ * 报告里包含数据血缘与隐私处理记录——这两项让报告本身就能回答
+ * "数据从哪来、隐私怎么处理的"，不必再去翻别的页面。
+ */
+import { useEffect, useState } from 'react'
+import { motion } from 'motion/react'
+import {
+  Check,
+  Copy,
+  Download,
+  FileBarChart,
+  Loader2,
+  Sparkles,
+} from 'lucide-react'
+
+import apiClient from '@/api/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { FileText, Loader2, Eye, Trash2, Database } from 'lucide-react'
-import { reportApi } from '@/api/analysis'
-import { extractApiError } from '@/api/crawl'
-import { useAppStore } from '@/stores/appStore'
+import { cn } from '@/lib/utils'
+
+interface TableRow {
+  name: string
+  count?: number
+}
+
+interface ReportPayload {
+  dataset_id: number
+  analysis_type: string
+  format: string
+  title: string
+  content: string
+  sections: string[]
+}
+
+const FORMATS = [
+  { value: 'markdown', label: 'Markdown' },
+  { value: 'html', label: 'HTML' },
+  { value: 'json', label: 'JSON' },
+] as const
 
 export default function ReportsPage() {
-  const [searchParams] = useSearchParams()
-  const { addNotification } = useAppStore()
+  const [datasets, setDatasets] = useState<TableRow[]>([])
+  const [selected, setSelected] = useState<number | null>(null)
+  const [format, setFormat] = useState<'markdown' | 'html' | 'json'>('markdown')
   const [loading, setLoading] = useState(false)
-  const [reports, setReports] = useState<any[]>([])
-  const [reportFormat, setReportFormat] = useState<'markdown' | 'html'>('markdown')
-  const [selectedReport, setSelectedReport] = useState<any>(null)
-  const [generating, setGenerating] = useState(false)
-  const [sourceTableHint, setSourceTableHint] = useState(searchParams.get('sourceTable') || '')
+  const [report, setReport] = useState<ReportPayload | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    fetchReports()
+    async function load() {
+      try {
+        const { data } = await apiClient.get<{ tables: TableRow[] }>('/data/tables')
+        const rows = (data.tables ?? []).filter((t) => String(t.name).startsWith('ds_'))
+        setDatasets(rows)
+        if (rows.length > 0) setSelected(Number(String(rows[0].name).replace(/^ds_/, '')))
+      } catch {
+        setDatasets([])
+      }
+    }
+    void load()
   }, [])
 
-  useEffect(() => {
-    const sourceTable = searchParams.get('sourceTable')
-    if (sourceTable) {
-      setSourceTableHint(sourceTable)
-    }
-  }, [searchParams])
-
-  const fetchReports = async () => {
+  async function generate() {
+    if (selected == null) return
+    setLoading(true)
+    setError(null)
+    setCopied(false)
     try {
-      setLoading(true)
-      const res = await reportApi.list()
-      const nextReports = res.data?.reports || res.data || []
-      setReports(nextReports)
-      if (!selectedReport && nextReports.length > 0) {
-        setSelectedReport(nextReports[0])
-      }
-    } catch (e: any) {
-      addNotification({ type: 'error', title: '加载失败', description: extractApiError(e) })
+      const { data } = await apiClient.post<ReportPayload>('/analytics/report', {
+        dataset_id: selected,
+        analysis_type: 'eda',
+        format,
+      })
+      setReport(data)
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response
+        ?.data?.detail
+      setError(typeof detail === 'string' ? detail : '报告生成失败')
+      setReport(null)
     } finally {
       setLoading(false)
     }
   }
 
-  const generateReport = async () => {
-    if (!sourceTableHint.trim()) {
-      addNotification({ type: 'warning', title: '请先提供数据来源', description: '请先输入真实数据表名，或从分析页跳转过来。' })
-      return
-    }
+  async function downloadExport(kind: 'csv' | 'json' | 'excel') {
+    if (selected == null) return
     try {
-      setGenerating(true)
-      const reportType = reportFormat === 'html' ? 'comprehensive' : 'eda'
-      const res = await reportApi.generateFromTable({
-        table_name: sourceTableHint,
-        report_type: reportType,
+      const response = await apiClient.get(`/analytics/export/${selected}`, {
+        params: { format: kind },
+        responseType: 'blob',
       })
-      addNotification({
-        type: 'success',
-        title: '报告生成完成',
-        description: `已基于真实数据表 ${sourceTableHint} 生成报告`,
-      })
-      await fetchReports()
-    } catch (e: any) {
-      addNotification({ type: 'error', title: '生成失败', description: extractApiError(e) })
-    } finally {
-      setGenerating(false)
+      const url = URL.createObjectURL(response.data as Blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `dataset_${selected}.${kind === 'excel' ? 'xlsx' : kind}`
+      anchor.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('导出失败')
     }
   }
 
-  const viewReport = async (id: number) => {
-    try {
-      const res = await reportApi.get(id)
-      setSelectedReport(res.data)
-    } catch (e: any) {
-      addNotification({ type: 'error', title: '加载失败', description: extractApiError(e) })
-    }
-  }
-
-  const deleteReport = async (id: number) => {
-    try {
-      await reportApi.delete(id)
-      setReports(reports.filter((r) => r.id !== id))
-      if (selectedReport?.id === id) setSelectedReport(null)
-      addNotification({ type: 'info', title: '报告已删除' })
-    } catch (e: any) {
-      addNotification({ type: 'error', title: '删除失败', description: extractApiError(e) })
-    }
+  async function copyContent() {
+    if (!report) return
+    await navigator.clipboard.writeText(report.content)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">报告中心</h2>
-          <p className="text-muted-foreground">自动分析报告 · Markdown/HTML · 导出分享</p>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <section className="glass rounded-xl p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <FileBarChart className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">报告生成</h2>
         </div>
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder="输入来源标识，例如 table 名"
-            className="w-56"
-            value={sourceTableHint}
-            onChange={(e) => setSourceTableHint(e.target.value)}
-          />
-          <Select value={reportFormat} onValueChange={(v: any) => setReportFormat(v)}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="markdown">Markdown</SelectItem>
-              <SelectItem value="html">HTML</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={generateReport} disabled={generating}>
-            {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <div className="section-title mb-2">选择数据集</div>
+            <div className="space-y-1.5">
+              {datasets.length === 0 && (
+                <p className="text-xs text-muted-foreground">暂无可选数据集</p>
+              )}
+              {datasets.map((table) => {
+                const id = Number(String(table.name).replace(/^ds_/, ''))
+                return (
+                  <button
+                    key={table.name}
+                    type="button"
+                    onClick={() => setSelected(id)}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition-colors',
+                      selected === id
+                        ? 'border-primary/50 bg-primary/10 text-primary'
+                        : 'border-border/60 hover:border-primary/30 hover:bg-muted/50',
+                    )}
+                  >
+                    <span className="mono-tag">{table.name}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {(Number(table.count) || 0).toLocaleString()} 行
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="section-title mb-2">报告格式</div>
+            <div className="flex gap-2">
+              {FORMATS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setFormat(item.value)}
+                  className={cn(
+                    'flex-1 rounded-lg border px-3 py-2 text-xs transition-colors',
+                    format === item.value
+                      ? 'border-primary/50 bg-primary/10 text-primary'
+                      : 'border-border/60 hover:border-primary/30 hover:bg-muted/50',
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="section-title mb-2 mt-4">导出原始数据</div>
+            <div className="flex gap-2">
+              {(['csv', 'json', 'excel'] as const).map((kind) => (
+                <Button
+                  key={kind}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void downloadExport(kind)}
+                  disabled={selected == null}
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  {kind.toUpperCase()}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-3 border-t border-border/60 pt-4">
+          <Button onClick={() => void generate()} disabled={loading || selected == null}>
+            {loading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
             生成报告
           </Button>
+          {error && <span className="text-xs text-destructive">{error}</span>}
         </div>
-      </div>
+      </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* 报告列表 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>历史报告</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {reports.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <FileText className="h-10 w-10 mb-2 opacity-30" />
-                <p className="text-sm">暂无报告</p>
-                <p className="text-xs">可从分析页跳转，或直接输入真实数据表名生成报告</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {reports.map((report) => (
-                  <div key={report.id} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div>
-                      <p className="font-medium text-sm">{report.name || `报告 #${report.id}`}</p>
-                      <p className="text-xs text-muted-foreground">{report.created_at}</p>
-                      {report.meta?.table_name && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          数据表：{report.meta.table_name}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => viewReport(report.id)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteReport(report.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 报告预览 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>报告预览</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedReport ? (
-              <div className="space-y-4">
-                <div className="rounded-lg border p-4 bg-muted/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Database className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">报告元信息</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>名称：{selectedReport.name}</div>
-                    <div>类型：{selectedReport.report_type}</div>
-                    <div>格式：{selectedReport.format}</div>
-                    <div>创建时间：{selectedReport.created_at}</div>
-                  </div>
-                  {selectedReport.meta?.table_name && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      来源数据表：{selectedReport.meta.table_name}
-                    </p>
-                  )}
-                </div>
-
-                {selectedReport.html_content ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: selectedReport.html_content }} />
-                  </div>
-                ) : (
-                  <ReportStructuredPreview report={selectedReport} />
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <FileText className="h-10 w-10 mb-2 opacity-30" />
-                <p className="text-sm">选择报告查看内容</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
-}
-
-function ReportStructuredPreview({ report }: { report: any }) {
-  let parsedContent: any = null
-
-  try {
-    parsedContent = report.content ? JSON.parse(report.content) : null
-  } catch {
-    parsedContent = null
-  }
-
-  if (!parsedContent) {
-    return (
-      <pre className="whitespace-pre-wrap text-sm font-mono rounded-lg bg-muted/50 p-3 overflow-auto">
-        {report.content || JSON.stringify(report, null, 2)}
-      </pre>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold">{parsedContent.title || report.name}</h3>
-        <p className="text-sm text-muted-foreground">
-          {parsedContent.dataset_name ? `数据集：${parsedContent.dataset_name}` : ''}
-          {parsedContent.table_name ? ` · 数据表：${parsedContent.table_name}` : ''}
-        </p>
-      </div>
-
-      {parsedContent.sections?.length ? (
-        <div className="space-y-4">
-          {parsedContent.sections.map((section: any, index: number) => (
-            <div key={`${section.title}-${index}`} className="rounded-lg border p-4">
-              <h4 className="font-medium mb-2">{section.title}</h4>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                {(section.content || []).map((line: string, lineIndex: number) => (
-                  <p key={lineIndex}>{line}</p>
+      {report && (
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass overflow-hidden rounded-xl"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3.5">
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-semibold">{report.title}</h3>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {report.sections.map((section) => (
+                  <span key={section} className="mono-tag">
+                    {section}
+                  </span>
                 ))}
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <pre className="whitespace-pre-wrap text-sm font-mono rounded-lg bg-muted/50 p-3 overflow-auto">
-          {JSON.stringify(parsedContent, null, 2)}
-        </pre>
+            <Button variant="outline" size="sm" onClick={() => void copyContent()}>
+              {copied ? (
+                <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-500" />
+              ) : (
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {copied ? '已复制' : '复制'}
+            </Button>
+          </div>
+
+          <div className="max-h-[620px] overflow-auto p-5">
+            {report.format === 'html' ? (
+              <iframe
+                title="分析报告"
+                srcDoc={report.content}
+                className="h-[560px] w-full rounded-lg border border-border/60 bg-white"
+                sandbox=""
+              />
+            ) : (
+              <pre className="whitespace-pre-wrap break-words font-mono text-[0.76rem] leading-relaxed text-muted-foreground">
+                {report.content}
+              </pre>
+            )}
+          </div>
+        </motion.section>
       )}
     </div>
   )

@@ -1,64 +1,47 @@
+/**
+ * 应用入口
+ * ========
+ *
+ * 路由只保留六个核心页面——每个都对应采集链路里的一个真实环节。
+ * 移除的页面（ML / DL / 挖掘 / 模型管理 / 旧数据浏览 / 验收中心）的能力
+ * 已被后端新链路覆盖：分析与建模通过 /analytics 统一入口调用，
+ * 界面上不再需要各自独立的页面。
+ */
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ThemeProvider } from '@/components/theme-provider'
-import { Toaster } from '@/components/ui/toaster'
 
 import MainLayout from '@/components/layout/MainLayout'
-import Dashboard from '@/pages/Dashboard'
-import DataSourcePage from '@/pages/DataSource'
-import CrawlPage from '@/pages/Crawl'
-import DataBrowserPage from '@/pages/DataBrowser'
-import DatasetPage from '@/pages/Dataset'
-import AnalysisPage from '@/pages/Analysis'
-import MLPage from '@/pages/ML'
-import DLPage from '@/pages/DL'
-import MiningPage from '@/pages/Mining'
-import ModelPage from '@/pages/Model'
-import VisualizationPage from '@/pages/Visualization'
+import DashboardPage from '@/pages/Dashboard'
+import DiscoverPage from '@/pages/Discover'
+import CollectPage from '@/pages/Collect'
+import DatasetsPage from '@/pages/Datasets'
+import AnalyticsPage from '@/pages/Analytics'
 import ReportsPage from '@/pages/Reports'
-import ReportPage from '@/pages/Report'
-import ImportPage from '@/pages/ImportPage'
-import SettingsPage from '@/pages/Settings'
-import SmokeCenterPage from '@/pages/SmokeCenter'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
+      staleTime: 1000 * 30,
       retry: 1,
+      refetchOnWindowFocus: false,
     },
   },
 })
 
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="idp-theme">
-        <Routes>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="sources" element={<DataSourcePage />} />
-            <Route path="crawl" element={<CrawlPage />} />
-            <Route path="data" element={<DataBrowserPage />} />
-            <Route path="datasets" element={<DatasetPage />} />
-            <Route path="analysis" element={<AnalysisPage />} />
-            <Route path="ml" element={<MLPage />} />
-            <Route path="dl" element={<DLPage />} />
-            <Route path="mining" element={<MiningPage />} />
-            <Route path="models" element={<ModelPage />} />
-            <Route path="visualization" element={<VisualizationPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="report" element={<ReportPage />} />
-            <Route path="import" element={<ImportPage />} />
-            <Route path="smoke" element={<SmokeCenterPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <Toaster />
-      </ThemeProvider>
+      <Routes>
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="discover" element={<DiscoverPage />} />
+          <Route path="collect" element={<CollectPage />} />
+          <Route path="datasets" element={<DatasetsPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="reports" element={<ReportsPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </QueryClientProvider>
   )
 }
-
-export default App

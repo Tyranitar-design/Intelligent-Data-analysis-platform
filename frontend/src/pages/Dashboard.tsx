@@ -1,185 +1,284 @@
+/**
+ * 工作台
+ * ======
+ *
+ * 平台的入口页：一屏之内回答三个问题——
+ *   现在有什么（数据资产）、正在做什么（任务）、接下来能做什么（快捷入口）。
+ */
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Database, Globe, BarChart3, Brain, ArrowRight, Activity, 
-  TrendingUp, Zap, Newspaper, ShoppingCart, Clock, CheckCircle,
-  AlertCircle, Loader2,
-} from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { edaApi } from '@/api/analysis'
-import { useAnalysisStore } from '@/stores/analysisStore'
-import { useTaskStore } from '@/stores/taskStore'
+import { motion } from 'motion/react'
+import {
+  Activity,
+  ArrowUpRight,
+  Database,
+  FileBarChart,
+  Globe2,
+  Layers,
+  Radar,
+  ServerCog,
+  Table2,
+} from 'lucide-react'
 
-const statCards = [
-  { key: 'total_records', name: '数据总量', icon: Database, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-  { key: 'stock_records', name: '股票数据', icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-500/10' },
-  { key: 'energy_records', name: '能源数据', icon: Zap, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-  { key: 'news_records', name: '新闻数据', icon: Newspaper, color: 'text-orange-500', bg: 'bg-orange-500/10' },
-  { key: 'ecom_products', name: '电商数据', icon: ShoppingCart, color: 'text-red-500', bg: 'bg-red-500/10' },
-]
+import apiClient from '@/api/client'
+import { useAppStore } from '@/stores/appStore'
+import { cn } from '@/lib/utils'
 
-const quickActions = [
-  { name: '新建采集', href: '/crawl', icon: Globe, desc: '采集数据到平台' },
-  { name: '数据分析', href: '/analysis', icon: BarChart3, desc: 'EDA 探索性分析' },
-  { name: '训练模型', href: '/ml', icon: Brain, desc: '机器学习 Pipeline' },
-  { name: '生成报告', href: '/reports', icon: Activity, desc: '自动分析报告' },
-]
+interface JobRow {
+  job_id: number
+  plan_id: number
+  status: string
+  items_count: number
+  quality_score: number
+}
 
-export default function Dashboard() {
-  const { overview, setOverview } = useAnalysisStore()
-  const { tasks } = useTaskStore()
+interface TableRow {
+  name: string
+  count?: number
+}
+
+interface OverviewPayload {
+  total_tables?: number
+  tables?: TableRow[]
+}
+
+const STATUS_TONE: Record<string, string> = {
+  succeeded: 'badge-ok',
+  partial: 'badge-warn',
+  failed: 'badge-err',
+  running: 'badge-info',
+  waiting_human: 'badge-warn',
+  pending: 'badge-info',
+}
+
+export default function DashboardPage() {
+  const capabilities = useAppStore((s) => s.capabilities)
+  const fetchCapabilities = useAppStore((s) => s.fetchCapabilities)
+
+  const [overview, setOverview] = useState<OverviewPayload | null>(null)
+  const [jobs, setJobs] = useState<JobRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchOverview = async () => {
-      try {
-        setLoading(true)
-        const res = await edaApi.overview()
-        setOverview(res.data)
-      } catch (e) {
-        console.error('Failed to fetch overview:', e)
-      } finally {
-        setLoading(false)
-      }
+    let alive = true
+    async function load() {
+      const [overviewResult, jobsResult] = await Promise.allSettled([
+        apiClient.get<OverviewPayload>('/data/overview'),
+        apiClient.get<{ items: JobRow[] }>('/collect/jobs', { params: { limit: 6 } }),
+      ])
+      if (!alive) return
+      if (overviewResult.status === 'fulfilled') setOverview(overviewResult.value.data)
+      if (jobsResult.status === 'fulfilled') setJobs(jobsResult.value.data.items ?? [])
+      setLoading(false)
     }
-    fetchOverview()
-  }, [setOverview])
-
-  const formatNumber = (n: number | undefined) => {
-    if (!n) return '0'
-    if (n >= 10000) return (n / 10000).toFixed(1) + '万'
-    return n.toLocaleString()
-  }
-
-  const statusIcon = (status: string) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-500" />
-      case 'running': return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-      case 'failed': return <AlertCircle className="w-4 h-4 text-red-500" />
-      default: return <Clock className="w-4 h-4 text-yellow-500" />
+    void load()
+    if (!capabilities) void fetchCapabilities()
+    return () => {
+      alive = false
     }
-  }
+  }, [capabilities, fetchCapabilities])
+
+  const datasetTables = (overview?.tables ?? []).filter((t) =>
+    String(t.name).startsWith('ds_'),
+  )
+  const totalRows = (overview?.tables ?? []).reduce(
+    (sum, t) => sum + (Number(t.count) || 0),
+    0,
+  )
 
   return (
-    <div className="space-y-6">
-      {/* 标题 */}
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">工作台</h2>
-        <p className="text-muted-foreground">数据概览 · 任务管理 · 快捷操作</p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          index={0}
+          icon={Database}
+          label="数据表"
+          value={loading ? '—' : String(overview?.total_tables ?? 0)}
+          hint={`其中 ${datasetTables.length} 张为采集数据集`}
+        />
+        <StatCard
+          index={1}
+          icon={Layers}
+          label="入库记录"
+          value={loading ? '—' : totalRows.toLocaleString()}
+          hint="全部数据表行数合计"
+        />
+        <StatCard
+          index={2}
+          icon={Globe2}
+          label="采集任务"
+          value={loading ? '—' : String(jobs.length)}
+          hint="最近 6 条"
+        />
+        <StatCard
+          index={3}
+          icon={ServerCog}
+          label="服务能力"
+          value={
+            capabilities ? String(Object.keys(capabilities.capabilities).length) : '—'
+          }
+          hint={capabilities ? `v${capabilities.version}` : '未连接'}
+        />
+      </section>
 
-      {/* 统计卡片 */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {statCards.map((card) => {
-          const value = overview?.[card.key as keyof typeof overview] || 0
-          return (
-            <Card key={card.key}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {card.name}
-                </CardTitle>
-                <div className={`p-1.5 rounded-md ${card.bg}`}>
-                  <card.icon className={`h-4 w-4 ${card.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? <span className="text-muted-foreground">--</span> : formatNumber(value)}
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* 快捷操作 + 最近任务 */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* 快捷操作 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>快捷操作</CardTitle>
-            <CardDescription>一键进入常用功能</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {quickActions.map((action) => (
-              <Link key={action.name} to={action.href}>
-                <Button variant="outline" className="w-full justify-start h-auto py-3">
-                  <div className={`p-1.5 rounded-md bg-primary/10 mr-3`}>
-                    <action.icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium">{action.name}</div>
-                    <div className="text-xs text-muted-foreground">{action.desc}</div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
-                </Button>
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* 最近任务 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>最近任务</CardTitle>
-            <CardDescription>采集与分析任务状态</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {tasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                <Globe className="h-10 w-10 mb-2 opacity-30" />
-                <p className="text-sm">暂无任务</p>
-                <Link to="/crawl">
-                  <Button variant="link" size="sm" className="mt-1">创建第一个采集任务</Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {tasks.slice(0, 5).map((task) => (
-                  <div key={task.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-3">
-                      {statusIcon(task.status)}
-                      <span className="text-sm font-medium">{task.source_name}</span>
-                    </div>
-                    <Badge variant={task.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
-                      {task.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 系统信息 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>平台能力</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-primary">7</div>
-              <div className="text-xs text-muted-foreground">数据适配器</div>
+      <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="glass overflow-hidden rounded-xl"
+        >
+          <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">最近采集任务</h3>
             </div>
-            <div className="text-center p-3 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-primary">13</div>
-              <div className="text-xs text-muted-foreground">ML 算法</div>
-            </div>
-            <div className="text-center p-3 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-primary">10</div>
-              <div className="text-xs text-muted-foreground">图表类型</div>
-            </div>
-            <div className="text-center p-3 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-primary">3</div>
-              <div className="text-xs text-muted-foreground">挖掘方法</div>
-            </div>
+            <Link
+              to="/collect"
+              className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary"
+            >
+              全部 <ArrowUpRight className="h-3 w-3" />
+            </Link>
           </div>
-        </CardContent>
-      </Card>
+
+          {jobs.length === 0 ? (
+            <div className="px-5 py-10 text-center">
+              <p className="text-sm text-muted-foreground">还没有采集任务</p>
+              <Link
+                to="/discover"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                从分析一个站点开始 <ArrowUpRight className="h-3 w-3" />
+              </Link>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border/40">
+              {jobs.map((job) => (
+                <li
+                  key={job.job_id}
+                  className="flex items-center justify-between gap-3 px-5 py-3"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="mono-tag shrink-0">#{job.job_id}</span>
+                    <span
+                      className={cn(
+                        'badge-dot shrink-0',
+                        STATUS_TONE[job.status] ?? 'badge-info',
+                      )}
+                    >
+                      {job.status}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      计划 #{job.plan_id}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-4 text-xs">
+                    <span className="tabular-nums">{job.items_count} 条</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      质量 {Math.round((job.quality_score ?? 0) * 100)}%
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.16 }}
+          className="glass rounded-xl p-5"
+        >
+          <h3 className="mb-3 text-sm font-semibold">开始使用</h3>
+          <div className="space-y-2">
+            <ActionLink
+              to="/discover"
+              icon={Radar}
+              title="分析站点"
+              desc="输入 URL，识别结构与可采字段"
+            />
+            <ActionLink
+              to="/collect"
+              icon={Globe2}
+              title="查看采集任务"
+              desc="进度、质量分与去重统计"
+            />
+            <ActionLink
+              to="/datasets"
+              icon={Table2}
+              title="浏览数据集"
+              desc="物化后的结构化数据"
+            />
+            <ActionLink
+              to="/analytics"
+              icon={Activity}
+              title="执行分析"
+              desc="EDA、统计、相关性与异常检测"
+            />
+            <ActionLink
+              to="/reports"
+              icon={FileBarChart}
+              title="生成报告"
+              desc="含血缘与隐私处理记录"
+            />
+          </div>
+        </motion.section>
+      </div>
     </div>
+  )
+}
+
+function StatCard({
+  index,
+  icon: Icon,
+  label,
+  value,
+  hint,
+}: {
+  index: number
+  icon: typeof Database
+  label: string
+  value: string
+  hint: string
+}) {
+  return (
+    <div
+      className="glass glass-hover animate-rise rounded-xl p-4"
+      style={{ ['--stagger' as string]: `${index * 60}ms` }}
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <span className="section-title">{label}</span>
+        <Icon className="h-4 w-4 text-primary/70" />
+      </div>
+      <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-1 truncate text-[0.7rem] text-muted-foreground">{hint}</div>
+    </div>
+  )
+}
+
+function ActionLink({
+  to,
+  icon: Icon,
+  title,
+  desc,
+}: {
+  to: string
+  icon: typeof Radar
+  title: string
+  desc: string
+}) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-primary/5"
+    >
+      <Icon className="h-4 w-4 shrink-0 text-primary" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[0.82rem] font-medium">{title}</div>
+        <div className="truncate text-[0.7rem] text-muted-foreground">{desc}</div>
+      </div>
+      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
+    </Link>
   )
 }

@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import logging
 import re
+import secrets
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -426,8 +428,7 @@ class SiteProfiler:
     ) -> ComplianceVerdict:
         """判定记录落库（合规留痕）。返回写入的记录。"""
         record = ComplianceVerdict(
-            verdict_uid=verdict.authorization_token
-            or f"v-{profile_id}-{abs(hash(url)) % 10**8}",
+            verdict_uid=self._make_verdict_uid(profile_id, verdict),
             profile_id=profile_id,
             target_url=url[:1000],
             decision=str(verdict.decision),
@@ -446,6 +447,18 @@ class SiteProfiler:
         self.session.commit()
         self.session.refresh(record)
         return record
+
+    @staticmethod
+    def _make_verdict_uid(profile_id: int, verdict: Any) -> str:
+        """生成判定记录 ID。
+
+        每次判定都要留痕，因此 ID 必须唯一——不能用 profile_id + url 派生，
+        否则重复判别同一 URL 会撞唯一约束。
+        """
+        if verdict.authorization_token:
+            return verdict.authorization_token
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+        return f"v-{profile_id}-{stamp}-{secrets.token_hex(3)}"
 
     def _latest_verdict(self, profile_id: int) -> Optional[ComplianceVerdict]:
         """取某个画像最近一次判定记录。"""

@@ -196,19 +196,22 @@ class DatasetService:
                            table_name: str, columns: List[str], row_count: int,
                            source_url: str, source_type: str) -> int:
         """保存数据集元信息"""
+        # 列名已对齐当前 ORM 定义：schema 存列信息、size_bytes 存字节数、
+        # dataset_type 标记内容类型、source_type 记录来源（NOT NULL）。
         cursor = conn.execute("""
-            INSERT INTO datasets (name, description, dataset_type, table_name,
-                                  row_count, column_count, columns_info, size_mb, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO datasets (name, description, dataset_type, table_name, source_type,
+                                  row_count, column_count, schema, size_bytes, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             name,
             description or "",
-            source_type,
+            "raw",
             table_name,
+            source_type,
             row_count,
             len(columns),
             json.dumps(columns, ensure_ascii=False),
-            0.0,
+            0,
             datetime.now().isoformat(),
         ))
         conn.commit()
@@ -226,10 +229,10 @@ class DatasetService:
         result = []
         for row in rows:
             r = dict(row)
-            if r.get('columns_info'):
+            if r.get('schema'):
                 try:
-                    r['columns_info'] = json.loads(r['columns_info'])
-                except:
+                    r['schema'] = json.loads(r['schema'])
+                except (TypeError, ValueError):
                     pass
             result.append(r)
         return result

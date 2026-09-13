@@ -110,6 +110,13 @@ def _cleanup(db) -> None:
     顺序错误会让整条事务因外键约束回滚，结果是"看似清理了，其实一条没删"，
     残留数据会让后续测试全部误判为已采集。
     """
+    # 清理前先结束任何悬挂事务：若上一个测试以 IntegrityError 结束，
+    # session 处于不可用状态，此时任何清理都会失败。
+    try:
+        db.rollback()
+    except Exception:  # noqa: BLE001
+        pass
+
     datasets = (
         db.execute(select(Dataset).where(Dataset.name.like("pipe_test_%"))).scalars().all()
     )

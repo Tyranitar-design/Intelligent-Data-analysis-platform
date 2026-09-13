@@ -640,14 +640,111 @@ GET  /api/v1/collect/datasets/{id}/preview       预览数据集内容
 
 ---
 
-## 下一步：P4 分析层接入
+## 阶段 P4 · 分析层接入
 
-目标：让物化后的数据集直接进入现有分析链路。
+状态：**已完成 ✅**
+完成：2026-09-14
 
-- `analysis/`、`mining/`、`ml/`、`dl/` 统一以 `dataset_id` 为输入
-- 统一分析输出格式 `{result, charts}`
-- 接通报告导出（CSV / JSON / Excel / PDF）
-- 目标：端到端跑通「输入 URL → 画像 → 判定 → 采集 → 入库 → 分析 → 报告」
+目标：让物化后的数据集直接进入分析链路，并把整条端到端打通。
+
+### 交付内容
+
+```
+backend/analysis/facade.py       分析门面：以 dataset_id 为统一输入
+backend/api/routers/analytics.py 4 个端点
+backend/tests/integration/test_end_to_end.py  端到端验收（2 个测试）
+```
+
+### 关键实现点
+
+**门面存在的理由**：现有 `AnalysisService` / `EDAEngine` 接收的是 DataFrame，
+而平台的标准输入是数据集 ID。门面负责把"数据集"翻译成"DataFrame"，再把各引擎的
+结果翻译成统一输出——**分析逻辑本身不重写**，只做适配。
+
+**统一输出** `{dataset_id, analysis_type, result, charts, summary}`，
+图表用 ECharts option 结构，前端可直接渲染。
+
+支持六种分析：`eda` / `stats` / `correlation` / `outliers` / `missing` / `preview`。
+
+**EDA 降级保护**：`EDAEngine` 导入失败时退回内置最小实现，保证分析链不中断。
+
+**报告三格式**：markdown / html / json。报告含数据集概况、统计表、显著相关、
+异常值、缺失情况、图表清单、**数据血缘**与**隐私处理记录**——后两项让报告本身
+就能回答"数据从哪来、隐私怎么处理的"。
+
+**导出三格式**：CSV（UTF-8 BOM，Excel 直接打开不乱码）/ JSON / Excel。
+
+### 本轮修复的问题
+
+| # | 问题 | 影响 |
+|---|---|---|
+| 1 | `verdict_uid` 由 `profile_id + hash(url)` 派生 | 重复判别同一 URL 必撞唯一约束，整条链在第二次运行时崩 |
+| 2 | `Dataset` 模型缺 `dataset_type` 列 | `crawlers/dataset_service.py` 写入失败，`/smoke/run` 实际功能是坏的 |
+| 3 | `dataset_service.py` 用旧列名 `columns_info` / `size_mb` | 同上，且它把 `source_type` 的值插进了 `dataset_type` 列（旧 bug） |
+| 4 | 测试清理前未 rollback 悬挂事务 | 上个测试以 IntegrityError 结束时，清理静默失败，残留数据污染后续测试 |
+
+第 1、2、3 项都是 **refactor 留下的新旧不一致**：模型改了但调用方没改，
+而这些问题只在真正跑起来时才暴露——这正是"能启动但一用就崩"的那类缺陷。
+
+### 验证结果
+
+```
+$ pytest tests/ -q
+88 passed
+```
+
+**端到端验收测试**（`test_end_to_end.py`）覆盖七个环节：
+
+```
+1. 站点画像     domain / site_type=news / confidence>0.5 / has_sitemap
+2. 合规判定     decision=proceed, A1
+3. 采集执行     status=succeeded, items≥3, 每条数据均关联判定留痕
+4. 物化数据集   row_count≥3, 物理表存在, 血缘非空, PII 策略非空
+5. 分析         eda / stats（识别出数值字段）/ correlation / outliers
+                图表含 ECharts option 与 series
+6. 报告         markdown 含概况与血缘；html 含表格
+7. 导出         csv / json / excel 三种格式均有内容且 media_type 正确
+```
+
+**幂等性测试**：二次执行整条链路，条目数不增长，去重统计显示命中增量。
+
+端点数 108 → 112：
+
+```
+POST /api/v1/analytics/run                  执行分析
+POST /api/v1/analytics/report               生成报告
+GET  /api/v1/analytics/export/{dataset_id}  导出数据集
+GET  /api/v1/analytics/types                支持的分析类型
+```
+
+### 测试配置调整
+
+`tests/legacy/` 排除出默认收集。它们是 P0 归档的历史测试（依赖已变更的接口、
+缺 pytest-asyncio 配置、多为无断言的连通性检查），记录的是上一代的验证方式，
+不守护当前契约。文件保留供追溯。
+
+### 端到端链路状态
+
+```
+输入 URL → 站点画像 → 合规判定 → 采集 → 入库 → 分析 → 报告导出
+   ✅        ✅         ✅       ✅     ✅     ✅      ✅
+```
+
+七个环节全部打通，并有自动化测试守护。
+
+---
+
+## 下一步：P5 MCP 工具面
+
+目标：把平台能力以 MCP 工具形式暴露给 Hermes。
+
+- `backend/mcp/server.py` + `tools/` 七个工具
+- 鉴权（principal 绑定）、审计（入参只存摘要哈希）
+- 部署脚本与接入文档
+- 七个工具：`analyze_site` / `plan_collection` / `run_collection` /
+  `job_status` / `query_dataset` / `run_analysis` / `make_report`
+
+设计约束见 `docs/HERMES-PROMPT-v3.md` 第 6 章。
 
 ---
 

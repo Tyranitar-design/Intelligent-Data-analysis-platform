@@ -36,8 +36,11 @@ This file is the project hot-start memory. Read it first, then dive into the dee
 
 ## Recent Captures
 
-- 2026-05-15 | Smoke Center | local-upload-basic | passed | 本地数据主链验收 -> passed @ completed
-- 2026-05-15 | Smoke Center | local-upload-basic | passed | 本地数据主链验收 -> passed @ completed
+- 2026-09-14 | Smoke Center | local-upload-basic | passed | 本地数据主链验收 -> passed @ completed
+- 2026-09-14 | Smoke Center | live-assisted-bilibili | failed | Bilibili assisted auth -> failed @ session_reuse_check
+- 2026-09-14 | Smoke Center | live-assisted-bilibili | manual_checkpoint_required | Bilibili 人机协同验收 -> manual_checkpoint_required @ waiting_for_human
+- 2026-09-14 | Smoke Center | local-upload-basic | passed | 本地数据主链验收 -> passed @ completed
+- 2026-09-14 | Smoke Center | live-assisted-bilibili | failed | Bilibili assisted auth -> failed @ session_reuse_check
 
 ## Retrieval Hints
 

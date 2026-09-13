@@ -19,6 +19,8 @@ class Dataset(Base):
     # 数据来源
     source_type = Column(String(50), nullable=False)  # crawl | upload | api
     source_id = Column(Integer, nullable=True)  # 关联的采集任务ID或数据源ID
+    # 数据集内容类型：旧链路（crawlers/dataset_service）依赖此字段标记 raw/processed
+    dataset_type = Column(String(50), nullable=True, default="raw")
     
     # 数据信息
     schema = Column(JSON, nullable=True)  # 字段定义

@@ -29,6 +29,7 @@ from api.models import (
     CollectSchedule,
     CollectTask,
     ComplianceVerdict,
+    Dataset,
     SiteProfile,
 )
 from api.schemas.collect import PlanRequest, RunRequest, ScheduleCreate, ScheduleUpdate
@@ -345,6 +346,73 @@ def preview_dataset(
     materializer = DatasetMaterializer(db)
     try:
         return materializer.read_dataset(dataset_id, limit=limit, offset=offset)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/datasets", summary="数据集列表（元数据）")
+def list_datasets(
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+) -> dict:
+    """列出已物化的数据集元数据（供对比 / 选择场景）。"""
+    rows = (
+        db.execute(select(Dataset).order_by(Dataset.id.desc()).limit(limit))
+        .scalars()
+        .all()
+    )
+    return {
+        "items": [
+            {
+                "dataset_id": row.id,
+                "name": row.name,
+                "row_count": row.row_count,
+                "column_count": row.column_count,
+                "created_at": (
+                    row.created_at.isoformat() if row.created_at else None
+                ),
+            }
+            for row in rows
+        ]
+    }
+
+
+@router.get("/datasets/{dataset_id}/search", summary="检索数据集内容")
+def search_dataset(
+    dataset_id: int,
+    q: str | None = Query(None, description="关键字（LIKE 匹配；为空则全量分页）"),
+    field: str | None = Query(None, description="限定字段（需在数据集 schema 内）"),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    """在物化表上做关键字 / 字段检索。"""
+    from pipeline.storage import DatasetMaterializer
+
+    if db.get(Dataset, dataset_id) is None:
+        raise HTTPException(status_code=404, detail="数据集不存在")
+
+    materializer = DatasetMaterializer(db)
+    try:
+        return materializer.search_dataset(
+            dataset_id, q=q, field=field, limit=limit, offset=offset
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/datasets/diff", summary="对比两个数据集")
+def diff_datasets(
+    a: int = Query(..., description="数据集 A 的 ID"),
+    b: int = Query(..., description="数据集 B 的 ID"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """对比两个数据集的 schema 与统计差异（适合同一来源的两次采集对比）。"""
+    from pipeline.storage import DatasetMaterializer
+
+    materializer = DatasetMaterializer(db)
+    try:
+        return materializer.diff_datasets(a, b)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

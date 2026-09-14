@@ -9,6 +9,7 @@ import {
   Database,
   FileBarChart,
   Gauge,
+  GitCompare,
   Globe2,
   LayoutDashboard,
   Menu,
@@ -60,7 +61,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: '数据资产',
-    items: [{ to: '/datasets', label: '数据集', icon: Database, hint: '物化后的数据集' }],
+    items: [
+      { to: '/datasets', label: '数据集', icon: Database, hint: '物化后的数据集' },
+      { to: '/compare', label: '对比分析', icon: GitCompare, hint: '跨数据集差异' },
+    ],
   },
   {
     title: '分析与交付',

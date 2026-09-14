@@ -1410,3 +1410,46 @@ RESULT: all checks passed
 | 接入管理 `/integrations` | ✅ **本阶段** |
 
 P8 阶段全部完成。遗留：采集速率历史曲线、审计点补全（采集/物化/导出）。
+
+---
+
+## 阶段 P9a · 数据集检索与对比（P9 第一刀）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v4.md` §3.2（D4 检索层 + A1 多数据集对比）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 检索 | `GET /collect/datasets/{id}/search` | 关键字（前 8 字段 OR LIKE 匹配）+ 字段限域；列名白名单校验 + 参数绑定防注入 |
+| 对比 | `GET /collect/datasets/diff` | 行数差 / 共同字段 / 双向独有字段 / 类型变化 / 覆盖变化 |
+| 列表 | `GET /collect/datasets` | 数据集元数据列表（对比选择器数据源） |
+| 详情页检索 | `DatasetDetail.tsx` | 字段选择器 + 关键字框 + 检索/清除 + 命中计数 |
+| 对比页 | `frontend/src/pages/Compare.tsx` | 双选择器 → 概览双卡（行数差徽章）+ 字段变化 + 覆盖变化 |
+| 导航 | 数据资产组新增「对比分析」 | |
+| 测试 | `tests/integration/test_dataset_search_diff.py` | 7 个（关键词 / 限域 / 非法字段 / 404 / diff / 列表契约） |
+| 验证 | `scripts/verify_p9_datasetops.py` | 9 项断言 + 双截图 |
+
+### 发现的设计事实（非缺陷）
+
+重复采集同一静态站点 → 三级去重按设计跳过全部已知条目 → 新 job 零条目、
+不产生新数据集（"增量优先"的正确语义）。版本对比的真实场景：
+① 站点内容更新后的两次采集 ② 同源重新物化快照。
+
+### 验收（实机门禁 9/9，证据 `docs/evidence/p9-datasetops/`）
+
+```
+OK  datasets list endpoint / two datasets available  --  ids=[2, 1]
+OK  search keyword matches  --  total 1 -> 1 (q=Example)
+OK  search no-match returns empty  --  total=0
+OK  diff computes common fields  --  common=1 delta=0
+OK  compare page renders diff result / dataset detail search E2E
+RESULT: all checks passed
+```
+
+### 遗留
+
+- P9 剩余：D2 显式快照版本链、D3 保留策略、D4 检索深化（多关键字 / 全文索引）。

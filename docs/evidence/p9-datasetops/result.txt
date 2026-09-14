@@ -1,0 +1,10 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    datasets list endpoint  --  count=2
+  OK    two datasets available for diff  --  ids=[2, 1]
+  OK    search keyword matches  --  total 1 -> 1 (q=Example)
+  OK    search no-match returns empty  --  total=0
+  OK    diff computes common fields  --  a=2 b=1 common=1 delta=0
+  OK    compare page renders diff result  --  
+  OK    dataset detail search E2E  --  
+RESULT: all checks passed

@@ -16,12 +16,22 @@ import {
   GitBranch,
   Loader2,
   RefreshCw,
+  Search,
   Table2,
+  X,
 } from 'lucide-react'
 
 import apiClient from '@/api/client'
 import Reveal from '@/components/motion/Reveal'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 interface LineageEntry {
@@ -68,6 +78,7 @@ interface PreviewPayload {
   limit: number
   offset: number
   missing_table?: boolean
+  query?: { q: string | null; field: string | null }
 }
 
 const PAGE_SIZE = 50
@@ -108,6 +119,14 @@ export default function DatasetDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [offset, setOffset] = useState(0)
 
+  // 检索（关键字 + 字段限域）
+  const [queryText, setQueryText] = useState('')
+  const [queryField, setQueryField] = useState<string>('__all__')
+  const [activeQuery, setActiveQuery] = useState<{ q: string; field: string | null }>({
+    q: '',
+    field: null,
+  })
+
   const load = useCallback(async () => {
     if (!Number.isFinite(datasetId)) {
       setError('无效的数据集 ID')
@@ -118,8 +137,15 @@ export default function DatasetDetailPage() {
     setError(null)
     try {
       const { data: payload } = await apiClient.get<PreviewPayload>(
-        `/collect/datasets/${datasetId}/preview`,
-        { params: { limit: PAGE_SIZE, offset } },
+        `/collect/datasets/${datasetId}/search`,
+        {
+          params: {
+            limit: PAGE_SIZE,
+            offset,
+            ...(activeQuery.q ? { q: activeQuery.q } : {}),
+            ...(activeQuery.field ? { field: activeQuery.field } : {}),
+          },
+        },
       )
       setData(payload)
     } catch {
@@ -127,11 +153,26 @@ export default function DatasetDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [datasetId, offset])
+  }, [datasetId, offset, activeQuery])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  function runSearch() {
+    setOffset(0)
+    setActiveQuery({
+      q: queryText.trim(),
+      field: queryField === '__all__' ? null : queryField,
+    })
+  }
+
+  function clearSearch() {
+    setQueryText('')
+    setQueryField('__all__')
+    setOffset(0)
+    setActiveQuery({ q: '', field: null })
+  }
 
   function download(format: 'csv' | 'json' | 'excel') {
     window.open(`/api/v1/analytics/export/${datasetId}?format=${format}`, '_blank')
@@ -327,51 +368,100 @@ export default function DatasetDetailPage() {
         </div>
       ) : (
         <Reveal delay={0.15} className="glass overflow-hidden rounded-xl">
-          <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5">
-            <div className="flex items-center gap-2">
-              <Database className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold">
-                数据预览（{data.total.toLocaleString()}）
-              </h3>
+          <div className="border-b border-border/60 px-5 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">
+                  数据预览（{data.total.toLocaleString()}
+                  {activeQuery.q || activeQuery.field ? ' 条命中' : ''}）
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[0.68rem] text-muted-foreground tabular-nums">
+                  {data.total === 0
+                    ? '0'
+                    : `${offset + 1}–${Math.min(offset + PAGE_SIZE, data.total)}`}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                  disabled={!canPrev || loading}
+                  onClick={() => setOffset((v) => Math.max(0, v - PAGE_SIZE))}
+                >
+                  上一页
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                  disabled={!canNext || loading}
+                  onClick={() => setOffset((v) => v + PAGE_SIZE)}
+                >
+                  下一页
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => void load()}
+                  disabled={loading}
+                  aria-label="刷新预览"
+                >
+                  <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[0.68rem] text-muted-foreground tabular-nums">
-                {offset + 1}–{Math.min(offset + PAGE_SIZE, data.total)}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7"
-                disabled={!canPrev || loading}
-                onClick={() => setOffset((v) => Math.max(0, v - PAGE_SIZE))}
-              >
-                上一页
+
+            {/* 检索栏 */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Select value={queryField} onValueChange={setQueryField}>
+                <SelectTrigger className="h-8 w-36 text-xs">
+                  <SelectValue placeholder="全部字段" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value="__all__">全部字段</SelectItem>
+                  {fieldNames.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                value={queryText}
+                onChange={(e) => setQueryText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') runSearch()
+                }}
+                placeholder="关键字检索（回车）"
+                className="h-8 w-56 text-xs"
+              />
+              <Button size="sm" className="h-8" onClick={runSearch}>
+                <Search className="mr-1 h-3.5 w-3.5" />
+                检索
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7"
-                disabled={!canNext || loading}
-                onClick={() => setOffset((v) => v + PAGE_SIZE)}
-              >
-                下一页
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => void load()}
-                disabled={loading}
-                aria-label="刷新预览"
-              >
-                <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
-              </Button>
+              {(activeQuery.q || activeQuery.field) && (
+                <>
+                  <Button variant="ghost" size="sm" className="h-8" onClick={clearSearch}>
+                    <X className="mr-1 h-3.5 w-3.5" />
+                    清除
+                  </Button>
+                  <span className="text-[0.68rem] text-muted-foreground">
+                    当前：{activeQuery.field ? `字段「${activeQuery.field}」` : '全字段'} ·{' '}
+                    「{activeQuery.q || '—'}」
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
           {data.rows.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-              无可预览数据
+              {activeQuery.q || activeQuery.field
+                ? '无匹配结果——试试调整关键字或清除检索条件'
+                : '无可预览数据'}
             </div>
           ) : (
             <div className="max-h-[520px] overflow-auto">

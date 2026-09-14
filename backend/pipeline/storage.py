@@ -356,6 +356,165 @@ class DatasetMaterializer:
             "offset": offset,
         }
 
+    def search_dataset(
+        self,
+        dataset_id: int,
+        *,
+        q: Optional[str] = None,
+        field: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict:
+        """在物化表上做字段 / 关键字检索。
+
+        - ``field`` 为空：关键字在前 8 个字段内 OR 匹配；
+        - ``field`` 指定：仅在该字段内匹配；字段必须属于数据集 schema
+          （列名经白名单校验 + 双引号转义，值走参数绑定）。
+        """
+        dataset = self.session.get(Dataset, dataset_id)
+        if dataset is None:
+            raise ValueError(f"数据集不存在: {dataset_id}")
+
+        table_name = dataset.table_name or table_name_for(dataset_id)
+        inspector = inspect(self.session.connection())
+        if not inspector.has_table(table_name):
+            return {
+                "dataset_id": dataset_id,
+                "columns": [],
+                "rows": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "query": {"q": q, "field": field},
+                "missing_table": True,
+            }
+
+        schema = dataset.schema or {}
+        column_map = {
+            name: str(meta.get("column") or name)
+            for name, meta in schema.items()
+            if isinstance(meta, dict)
+        }
+
+        where_sql = ""
+        params: dict[str, Any] = {}
+        if field is not None:
+            column = column_map.get(field)
+            if column is None:
+                raise ValueError(f"字段不在数据集 schema 中: {field}")
+            if q:
+                where_sql = f"WHERE CAST({_quote(column)} AS TEXT) LIKE :q"
+                params["q"] = f"%{q}%"
+        elif q:
+            parts = []
+            for index, column in enumerate(list(column_map.values())[:8]):
+                key = f"q{index}"
+                parts.append(f"CAST({_quote(column)} AS TEXT) LIKE :{key}")
+                params[key] = f"%{q}%"
+            if parts:
+                where_sql = "WHERE (" + " OR ".join(parts) + ")"
+
+        conn = self.session.connection()
+        total = conn.execute(
+            text(f"SELECT COUNT(*) FROM {_quote(table_name)} {where_sql}"), params
+        ).scalar_one()
+        rows = (
+            conn.execute(
+                text(
+                    f"SELECT * FROM {_quote(table_name)} {where_sql} "
+                    f"ORDER BY id LIMIT :limit OFFSET :offset"
+                ),
+                {**params, "limit": limit, "offset": offset},
+            )
+            .mappings()
+            .all()
+        )
+
+        return {
+            "dataset": dataset.to_dict(),
+            "dataset_id": dataset_id,
+            "name": dataset.name,
+            "columns": [c["name"] for c in inspector.get_columns(table_name)],
+            "rows": [dict(row) for row in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "query": {"q": q, "field": field},
+        }
+
+    def diff_datasets(self, a_id: int, b_id: int) -> dict:
+        """对比两个数据集的 schema 与统计差异。
+
+        适合同一来源的两次采集对比（行数变化 / 字段增减 / 覆盖变化）。
+        """
+        dataset_a = self.session.get(Dataset, a_id)
+        dataset_b = self.session.get(Dataset, b_id)
+        if dataset_a is None:
+            raise ValueError(f"数据集不存在: {a_id}")
+        if dataset_b is None:
+            raise ValueError(f"数据集不存在: {b_id}")
+
+        def _fields(dataset: Dataset) -> dict[str, Optional[str]]:
+            return {
+                name: (meta.get("type") if isinstance(meta, dict) else None)
+                for name, meta in (dataset.schema or {}).items()
+            }
+
+        def _coverage(dataset: Dataset, name: str) -> Optional[float]:
+            stats = (dataset.statistics or {}).get("fields") or {}
+            entry = stats.get(name) or {}
+            coverage = entry.get("coverage")
+            return float(coverage) if coverage is not None else None
+
+        def _summary(dataset: Dataset) -> dict:
+            return {
+                "dataset_id": dataset.id,
+                "name": dataset.name,
+                "row_count": dataset.row_count,
+                "column_count": dataset.column_count,
+                "created_at": (
+                    dataset.created_at.isoformat() if dataset.created_at else None
+                ),
+            }
+
+        fields_a = _fields(dataset_a)
+        fields_b = _fields(dataset_b)
+        common = sorted(set(fields_a) & set(fields_b))
+        only_a = sorted(set(fields_a) - set(fields_b))
+        only_b = sorted(set(fields_b) - set(fields_a))
+
+        type_changed = [
+            {"field": name, "a": fields_a[name], "b": fields_b[name]}
+            for name in common
+            if fields_a[name] != fields_b[name]
+        ]
+
+        coverage_changes = []
+        for name in common:
+            cov_a, cov_b = _coverage(dataset_a, name), _coverage(dataset_b, name)
+            if cov_a is None or cov_b is None:
+                continue
+            if abs(cov_a - cov_b) >= 0.01:
+                coverage_changes.append(
+                    {
+                        "field": name,
+                        "a": cov_a,
+                        "b": cov_b,
+                        "delta": round(cov_b - cov_a, 4),
+                    }
+                )
+
+        return {
+            "a": _summary(dataset_a),
+            "b": _summary(dataset_b),
+            "row_delta": (dataset_b.row_count or 0) - (dataset_a.row_count or 0),
+            "common_fields": common,
+            "only_a": only_a,
+            "only_b": only_b,
+            "type_changed": type_changed,
+            "coverage_changes": coverage_changes,
+        }
+
     def drop_dataset(self, dataset_id: int) -> bool:
         """删除数据集及其物理表。"""
         dataset = self.session.get(Dataset, dataset_id)

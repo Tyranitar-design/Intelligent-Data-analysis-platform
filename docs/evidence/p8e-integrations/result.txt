@@ -1,0 +1,9 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    mcp overview (protocol + tools + auth)  --  tools=7 auth=False
+  OK    selftest initialize handshake  --  server={'protocolVersion': '2024-11-05', 'capabilities': {'tools': {'listChanged': False}}, 'serverInfo': {'name': 'webinsight-agent', 'version': '3.0.0'}} elapsed=0.01ms
+  OK    unauthenticated tool call rejected (fail-closed)  --  error_code=-32001
+  OK    rejection is audited  --  total 0 -> 1 denied=1
+  OK    integrations page renders  --  
+  OK    selftest button E2E  --  handshake text appeared
+RESULT: all checks passed

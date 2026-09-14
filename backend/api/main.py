@@ -26,6 +26,7 @@ from api.routers import (
     discover,
     health,
     mcp,
+    mcp_admin,
     monitor,
     reports,
     smoke,
@@ -132,6 +133,7 @@ app.include_router(discover.router, prefix="/api/v1/discover", tags=["站点判�
 app.include_router(collect.router, prefix="/api/v1/collect", tags=["数据采集 v3"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["分析 v3"])
 app.include_router(mcp.router, prefix="/mcp", tags=["MCP 工具面"])
+app.include_router(mcp_admin.router, prefix="/api/v1/mcp", tags=["接入管理"])
 app.include_router(audit.router, prefix="/api/v1/audit", tags=["审计"])
 app.include_router(monitor.router, prefix="/api/v1/monitor", tags=["运行监视"])
 

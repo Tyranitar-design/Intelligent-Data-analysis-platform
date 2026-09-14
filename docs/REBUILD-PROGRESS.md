@@ -1367,3 +1367,46 @@ RESULT: all checks passed
 
 - P8 剩余项：接入管理 `/integrations`（MCP 部署与统计）。
 - 采集速率的历史曲线（多快照时序）未做——当前为实时快照。
+
+---
+
+## 阶段 P8e · 接入管理（P8 收官）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v4.md` §4.6（接入管理）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 管理面端点 | `GET /api/v1/mcp/stats` | 近 N 天调用统计（审计聚合）+ 鉴权/工具数；时间窗口 Python 侧过滤（SQLite 无时区，字符串比较不可靠） |
+| 协议自检 | `POST /api/v1/mcp/selftest` | 走真实协议层发 `initialize`——不伪造凭据（握手本身免鉴权，鉴权只在 tools/call） |
+| 接入页 | `frontend/src/pages/Integrations.tsx` | 端点卡 + 配置片段（token 占位符）+ 测试连通 + 工具清单 + 调用统计 + 最近调用（跳审计 `?action=mcp.`） |
+| 审计页增强 | `Audit.tsx` | 支持 `?action=` URL 参数初始化过滤 |
+| 入口 | 侧边栏「平台治理」新增「接入管理」 | |
+| 测试 | `tests/integration/test_mcp_admin_api.py` | 3 个（契约 / 审计聚合 delta / selftest 握手） |
+| 验证 | `scripts/verify_integrations_p8e.py` | 8 项断言 + fail-closed 实证 + 截图 |
+
+### 验收（实机门禁 8/8，证据 `docs/evidence/p8e-integrations/`）
+
+```
+OK  mcp overview (protocol + tools + auth)  --  tools=7 auth=False
+OK  selftest initialize handshake  --  server=webinsight-agent 3.0.0 · 0.01ms
+OK  unauthenticated tool call rejected (fail-closed)  --  error_code=-32001
+OK  rejection is audited  --  total 0 -> 1 denied=1
+OK  integrations page renders / selftest button E2E
+RESULT: all checks passed
+```
+
+### 平台治理四页收官
+
+| 页面 | 状态 |
+|---|---|
+| 合规中心 `/compliance` | ✅ P8a |
+| 审计日志 `/audit` | ✅ P8b |
+| 运行监视 `/monitor` | ✅ P8d |
+| 接入管理 `/integrations` | ✅ **本阶段** |
+
+P8 阶段全部完成。遗留：采集速率历史曲线、审计点补全（采集/物化/导出）。

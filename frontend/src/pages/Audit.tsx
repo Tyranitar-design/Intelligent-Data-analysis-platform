@@ -8,6 +8,7 @@
  * 不提供删除——可删的审计等于没有审计（清理走保留策略）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, FileSearch, Loader2, RefreshCw } from 'lucide-react'
 
 import apiClient from '@/api/client'
@@ -74,7 +75,11 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
 
-  const [actionFilter, setActionFilter] = useState<string>('')
+  // 支持 /audit?action=mcp. 这类带过滤条件的跳转（接入管理 → 审计）
+  const [searchParams] = useSearchParams()
+  const [actionFilter, setActionFilter] = useState<string>(
+    () => searchParams.get('action') ?? '',
+  )
   const [resultFilter, setResultFilter] = useState<string>('')
   const [principal, setPrincipal] = useState('')
   const principalRef = useRef('')

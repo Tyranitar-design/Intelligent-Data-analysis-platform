@@ -19,6 +19,7 @@ import JobDetailPage from '@/pages/JobDetail'
 import SchedulesPage from '@/pages/Schedules'
 import CompliancePage from '@/pages/Compliance'
 import AuditPage from '@/pages/Audit'
+import MonitorPage from '@/pages/Monitor'
 import DatasetsPage from '@/pages/Datasets'
 import DatasetDetailPage from '@/pages/DatasetDetail'
 import AnalyticsPage from '@/pages/Analytics'
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="schedules" element={<SchedulesPage />} />
           <Route path="compliance" element={<CompliancePage />} />
           <Route path="audit" element={<AuditPage />} />
+          <Route path="monitor" element={<MonitorPage />} />
           <Route path="datasets" element={<DatasetsPage />} />
           <Route path="datasets/:id" element={<DatasetDetailPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />

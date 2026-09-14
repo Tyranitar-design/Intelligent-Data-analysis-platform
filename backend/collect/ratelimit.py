@@ -182,3 +182,23 @@ class AdaptiveRateLimiter:
             self._states.pop(domain, None)
         else:
             self._states.clear()
+
+
+# --------------------------------------------------------------------------- #
+# 进程级共享实例
+# --------------------------------------------------------------------------- #
+
+_shared_limiter: Optional[AdaptiveRateLimiter] = None
+
+
+def get_shared_limiter() -> AdaptiveRateLimiter:
+    """进程级共享的限速器。
+
+    采集调度器默认使用它——限速状态（被 429 降速、恢复进度）必须跨请求存续，
+    否则"自适应"只在一个请求内生效，等于没有自适应；
+    运行监视（``/monitor/stats``）也通过它读取各域名的实时节奏。
+    """
+    global _shared_limiter
+    if _shared_limiter is None:
+        _shared_limiter = AdaptiveRateLimiter()
+    return _shared_limiter

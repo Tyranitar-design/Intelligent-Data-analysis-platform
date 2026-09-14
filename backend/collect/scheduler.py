@@ -33,7 +33,7 @@ from api.models import (
 )
 from collect.capabilities import PageFetcher
 from collect.dedup import hamming_distance, make_item_key, simhash64, to_signed64, to_unsigned64
-from collect.ratelimit import AdaptiveRateLimiter
+from collect.ratelimit import AdaptiveRateLimiter, get_shared_limiter
 from collect.registry import (
     CapabilityRegistry,
     CollectRequest,
@@ -88,7 +88,7 @@ class CollectScheduler:
     ) -> None:
         self.session = session
         self.registry = registry or build_default_registry()
-        self.limiter = limiter or AdaptiveRateLimiter()
+        self.limiter = limiter or get_shared_limiter()
         self.hamming_threshold = hamming_threshold
 
     # ------------------------------------------------------------------ #

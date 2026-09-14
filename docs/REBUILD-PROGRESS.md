@@ -1332,3 +1332,38 @@ RESULT: all checks passed
   展示层不再拼接，待探测层统一清洗。
 - 批量操作（多选重探测 / 导出画像）未做（v4 可选互动）。
 - 接入管理 `/integrations`、运行监视 `/monitor`（P8 剩余）。
+
+---
+
+## 阶段 P8d · 运行监视（含共享限速器修复）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v4.md` §4.10（运行监视）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| **共享限速器**（关键修复） | `collect/ratelimit.py` + `collect/scheduler.py` | `get_shared_limiter()` 进程级单例——此前每个调度器实例新建限速器，"自适应"只在一个请求内生效；现在被 429 降速/恢复进度跨请求存续 |
+| 监视端点 | `GET /api/v1/monitor/stats` | service / queue / rate / storage 四段聚合 |
+| 监视页 | `frontend/src/pages/Monitor.tsx` | 四卡 + 域名限速表（基准→当前/请求数/被限速/连续成功/状态）+ 存储明细 + 自动刷新开关（30s） |
+| 入口 | 侧边栏「平台治理」新增「运行监视」 | |
+| 测试 | `tests/integration/test_monitor_api.py` | 3 个（契约 / 队列 delta / 限速表追踪） |
+| 验证 | `scripts/verify_monitor_p8d.py` | 6 项断言 + 截图 |
+
+### 验收（实机门禁 6/6，证据 `docs/evidence/p8d-monitor/`）
+
+```
+OK  stats four sections contract  --  version=2.0.0 tables=22 db_bytes=598016
+OK  collection executed  --  job=2 status=succeeded
+OK  rate table tracks collected domain  --  domains=['example.com']
+OK  monitor page renders (cards + rate table)
+RESULT: all checks passed
+```
+
+### 遗留
+
+- P8 剩余项：接入管理 `/integrations`（MCP 部署与统计）。
+- 采集速率的历史曲线（多快照时序）未做——当前为实时快照。

@@ -8,6 +8,7 @@ import {
   Compass,
   Database,
   FileBarChart,
+  Gauge,
   Globe2,
   LayoutDashboard,
   Menu,
@@ -72,6 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/compliance', label: '合规中心', icon: ShieldCheck, hint: '判定、授权与替代源' },
       { to: '/audit', label: '审计日志', icon: ScrollText, hint: '谁在何时做了什么' },
+      { to: '/monitor', label: '运行监视', icon: Gauge, hint: '服务健康与限速状态' },
     ],
   },
 ]

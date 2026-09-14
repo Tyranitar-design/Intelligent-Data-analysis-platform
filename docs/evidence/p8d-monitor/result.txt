@@ -1,0 +1,7 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    stats four sections contract  --  version=2.0.0 tables=22 db_bytes=598016
+  OK    collection executed  --  job=2 status=succeeded
+  OK    rate table tracks collected domain  --  domains=['example.com']
+  OK    monitor page renders (cards + rate table)  --  
+RESULT: all checks passed

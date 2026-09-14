@@ -1,0 +1,9 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    preview carries dataset meta  --  dataset=1 name=collect_job_1_20260914-040910
+  OK    meta has schema/lineage/pii fields  --  schema=yes lineage=yes
+  OK    preview rows readable  --  rows=1 / total=1
+  OK    csv export works  --  bytes=61 type=text/csv
+  OK    json export works  --  bytes=96
+  OK    dataset detail renders (fields + lineage + preview)  --  dataset=1
+RESULT: all checks passed

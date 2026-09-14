@@ -346,6 +346,7 @@ class DatasetMaterializer:
         ).mappings().all()
 
         return {
+            "dataset": dataset.to_dict(),
             "dataset_id": dataset_id,
             "name": dataset.name,
             "columns": columns,

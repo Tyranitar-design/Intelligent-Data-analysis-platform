@@ -68,7 +68,12 @@ def _extract_rule_map(profile: dict) -> dict[str, str]:
             continue
         source = spec.get("source") or "unknown"
         path = spec.get("path") or ""
-        mapping[name] = f"{source}:{path}" if path else source
+        if path:
+            # 画像的 path 可能自带 source 前缀（如 "css:h1"），避免拼成 "css:css:h1"
+            prefix = f"{source}:"
+            mapping[name] = path if path.startswith(prefix) else f"{source}:{path}"
+        else:
+            mapping[name] = source
     return mapping
 
 

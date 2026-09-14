@@ -6,8 +6,9 @@
  * 列表回答"有哪些数据、多大、什么时候来的"，预览回答"里面长什么样"。
  */
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Database, Loader2, RefreshCw, Table2 } from 'lucide-react'
+import { ArrowUpRight, Database, Loader2, RefreshCw, Table2 } from 'lucide-react'
 
 import apiClient from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -110,33 +111,48 @@ export default function DatasetsPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {tables.map((table, index) => (
-            <motion.button
-              key={table.name}
-              type="button"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3) }}
-              onClick={() => void openPreview(table.name)}
-              className={cn(
-                'glass glass-hover rounded-xl p-4 text-left',
-                previewId === Number(String(table.name).replace(/^ds_/, '')) &&
-                  'border-primary/45',
-              )}
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="mono-tag">{table.name}</span>
-                <Table2 className="h-4 w-4 text-primary/70" />
-              </div>
-              <div className="text-xl font-semibold tabular-nums">
-                {(Number(table.count) || 0).toLocaleString()}
-              </div>
-              <div className="mt-0.5 text-[0.7rem] text-muted-foreground">
-                行数据
-                {table.columns?.length ? ` · ${table.columns.length} 列` : ''}
-              </div>
-            </motion.button>
-          ))}
+          {tables.map((table, index) => {
+            const datasetId = Number(String(table.name).replace(/^ds_/, ''))
+            return (
+              <motion.div
+                key={table.name}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3) }}
+                className={cn(
+                  'glass glass-hover overflow-hidden rounded-xl',
+                  previewId === datasetId && 'border-primary/45',
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => void openPreview(table.name)}
+                  className="w-full p-4 text-left"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="mono-tag">{table.name}</span>
+                    <Table2 className="h-4 w-4 text-primary/70" />
+                  </div>
+                  <div className="text-xl font-semibold tabular-nums">
+                    {(Number(table.count) || 0).toLocaleString()}
+                  </div>
+                  <div className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                    行数据
+                    {table.columns?.length ? ` · ${table.columns.length} 列` : ''}
+                  </div>
+                </button>
+                <div className="flex items-center justify-between border-t border-border/50 px-4 py-2">
+                  <span className="text-[0.66rem] text-muted-foreground">点击卡片预览</span>
+                  <Link
+                    to={`/datasets/${datasetId}`}
+                    className="inline-flex items-center gap-0.5 text-[0.7rem] text-primary hover:underline"
+                  >
+                    详情 <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              </motion.div>
+            )
+          })}
         </div>
       )}
 

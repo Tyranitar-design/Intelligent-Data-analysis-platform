@@ -1240,3 +1240,46 @@ RESULT: all checks passed
 - 审计覆盖面：当前仅合规解锁与 MCP 工具调用写审计；采集执行 / 数据集物化 /
   导出 的审计点仍待补（v4 §4.9 所列动作清单）。
 - P8 剩余项：运行监视（`/monitor`）、接入管理（`/integrations`）。
+
+---
+
+## 阶段 P8c · 数据集详情（v4 第一档收官）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v4.md` §4.4（数据集详情 / 第一档）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 元信息增强 | `pipeline/storage.py::read_dataset` | 返回体带 `dataset`（schema / lineage / pii_policy / statistics），向后兼容 |
+| 详情页 | `frontend/src/pages/DatasetDetail.tsx` | 字段概览（类型/覆盖/PII/范围）+ 字段级血缘 + 分页预览 + CSV/JSON/Excel 导出 |
+| 入口 | Datasets 卡片底部「详情」链接 | |
+| 血缘修复 | `pipeline/lineage.py::_extract_rule_map` | 避免 `css:css:h1` 双重前缀（path 自带 source 前缀时去重） |
+| 验证 | `scripts/verify_dataset_detail_p8c.py` | 元信息 + 双格式导出 + 页面渲染 |
+
+### 验收（实机门禁 8/8，证据 `docs/evidence/p8c-dataset/`）
+
+```
+$ python scripts/verify_dataset_detail_p8c.py
+OK  backend/frontend ready
+OK  preview carries dataset meta  --  dataset=1 name=collect_job_1_20260914-040910
+OK  meta has schema/lineage/pii fields  --  schema=yes lineage=yes
+OK  preview rows readable  --  rows=1 / total=1
+OK  csv export works  --  bytes=61 type=text/csv
+OK  json export works  --  bytes=96
+OK  dataset detail renders (fields + lineage + preview)
+RESULT: all checks passed
+```
+
+### v4 第一档进度
+
+站点库 / 数据集详情 / 合规中心 / 接入管理 —— **数据集详情 + 合规中心已完成**；
+站点库（`/sites`）与接入管理（`/integrations`）待做。
+
+### 遗留
+
+- 站点库 `/sites`（画像资产化，P7 剩余）
+- 运行监视 `/monitor`、接入管理 `/integrations`（P8 剩余）

@@ -19,6 +19,7 @@ import SchedulesPage from '@/pages/Schedules'
 import CompliancePage from '@/pages/Compliance'
 import AuditPage from '@/pages/Audit'
 import DatasetsPage from '@/pages/Datasets'
+import DatasetDetailPage from '@/pages/DatasetDetail'
 import AnalyticsPage from '@/pages/Analytics'
 import ReportsPage from '@/pages/Reports'
 
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="compliance" element={<CompliancePage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="datasets" element={<DatasetsPage />} />
+          <Route path="datasets/:id" element={<DatasetDetailPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="reports" element={<ReportsPage />} />
         </Route>

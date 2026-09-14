@@ -16,6 +16,7 @@ import {
   Layers,
   Radar,
   ServerCog,
+  Sparkles,
   Table2,
 } from 'lucide-react'
 
@@ -116,6 +117,12 @@ export default function DashboardPage() {
             <Link to="/schedules">
               <Button size="sm" variant="outline">
                 调度中心
+              </Button>
+            </Link>
+            <Link to="/showcase">
+              <Button size="sm" variant="ghost">
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                展示视图
               </Button>
             </Link>
           </div>

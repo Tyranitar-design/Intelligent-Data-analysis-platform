@@ -1453,3 +1453,50 @@ RESULT: all checks passed
 ### 遗留
 
 - P9 剩余：D2 显式快照版本链、D3 保留策略、D4 检索深化（多关键字 / 全文索引）。
+
+---
+
+## 阶段 L3 · 展示岛（three.js 数据星云）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v5.md` §2.2（L3 展示岛）+ §2.3（Wow 时刻）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 星云场景 | `frontend/src/components/visual/nebula-scene.ts` | three.js 命令式场景：~5000 粒子分层流场（主壳 + 赤道环带 + 琥珀数据点）；呼吸波动在顶点着色器（CPU 只转 group）；指针视差阻尼跟随；页面隐藏暂停；完整 dispose |
+| 展示页 | `frontend/src/pages/Showcase.tsx` | `/showcase`：全屏场景 + 覆盖层（标题/双 CTA）+ 模式状态行 |
+| 降级链 | `canUseWebGL()` | reduced-motion / 核数 <4 / 无 WebGL → CSS 静态星云（**不加载 three.js**） |
+| 入口 | 工作台 Hero「✨ 展示视图」 | |
+| 验证 | `scripts/verify_showcase_l3.py` | 7 项断言 + 双截图（WebGL 场景 / 降级版） |
+
+### 体积与预算（构建实测）
+
+```
+nebula-scene chunk = 518 KB → 130.16 KB gzip（独立懒加载，含 three）
+主包 index 仅 +4 KB（页壳）；首屏完全不受影响（160KB 预算内）
+```
+
+### 验收（实机门禁 7/7，证据 `docs/evidence/l3-showcase/`）
+
+```
+OK  showcase page renders  --  mode=webgl
+OK  webgl canvas attached  --  canvas=1
+OK  reduced-motion skips three.js (static nebula)  --  nebula_canvas=0
+OK  no console errors
+RESULT: all checks passed
+```
+
+### 说明
+
+- `data-nebula` 属性用于精确识别场景 canvas（与全局粒子背景 canvas 区分）；
+- 顶点色走显式 `aColor` attribute——不依赖 THREE 对 ShaderMaterial 的
+  `USE_COLOR` 注入（跨版本稳定）。
+
+### 遗留
+
+- 后处理链（bloom）未启用——按预算与低端设备表现，暂不加；
+- 场景作为"展示岛"独立存在，不与工作区共享状态。

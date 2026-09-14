@@ -24,6 +24,7 @@ import IntegrationsPage from '@/pages/Integrations'
 import DatasetsPage from '@/pages/Datasets'
 import DatasetDetailPage from '@/pages/DatasetDetail'
 import ComparePage from '@/pages/Compare'
+import ShowcasePage from '@/pages/Showcase'
 import AnalyticsPage from '@/pages/Analytics'
 import ReportsPage from '@/pages/Reports'
 
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="datasets" element={<DatasetsPage />} />
           <Route path="datasets/:id" element={<DatasetDetailPage />} />
           <Route path="compare" element={<ComparePage />} />
+          <Route path="showcase" element={<ShowcasePage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="reports" element={<ReportsPage />} />
         </Route>

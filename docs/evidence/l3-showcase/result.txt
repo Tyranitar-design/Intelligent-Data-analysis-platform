@@ -1,0 +1,8 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    showcase page renders  --  mode=webgl
+  OK    scene mounted (webgl or designed fallback)  --  mode=webgl canvas=1
+  OK    webgl canvas attached  --  canvas=1
+  OK    reduced-motion skips three.js (static nebula)  --  nebula_canvas=0
+  OK    no console errors  --  0: []
+RESULT: all checks passed

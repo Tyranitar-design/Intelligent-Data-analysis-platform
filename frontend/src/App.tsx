@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import MainLayout from '@/components/layout/MainLayout'
 import DashboardPage from '@/pages/Dashboard'
 import DiscoverPage from '@/pages/Discover'
+import SitesPage from '@/pages/Sites'
 import CollectPage from '@/pages/Collect'
 import JobDetailPage from '@/pages/JobDetail'
 import SchedulesPage from '@/pages/Schedules'
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="discover" element={<DiscoverPage />} />
+          <Route path="sites" element={<SitesPage />} />
           <Route path="collect" element={<CollectPage />} />
           <Route path="collect/:jobId" element={<JobDetailPage />} />
           <Route path="schedules" element={<SchedulesPage />} />

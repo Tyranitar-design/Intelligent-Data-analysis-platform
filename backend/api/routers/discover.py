@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -89,11 +90,51 @@ def list_profiles(
                 "title": (r.site_meta or {}).get("title"),
                 "confidence": r.confidence,
                 "coverage": r.coverage,
+                "field_count": len(r.fields or []),
                 "decision": (r.compliance or {}).get("decision"),
                 "last_verified": r.last_verified.isoformat() if r.last_verified else None,
             }
             for r in rows
         ],
+    }
+
+
+@router.get("/profiles/stats", summary="站点画像统计")
+def profile_stats(db: Session = Depends(get_db)) -> dict:
+    """按判定 / 类型聚合画像分布，并统计过期画像（>14 天未验证）。
+
+    注意：本路由必须注册在 ``/profiles/{profile_id}`` **之前**——
+    否则 "stats" 会被当作路径参数解析（由测试守护）。
+    """
+    rows = db.execute(select(SiteProfile)).scalars().all()
+    now = datetime.now(timezone.utc)
+
+    by_decision = {"proceed": 0, "confirm_required": 0, "blocked": 0, "unknown": 0}
+    by_type: dict[str, int] = {}
+    stale_count = 0
+
+    for profile in rows:
+        decision = (profile.compliance or {}).get("decision") or "unknown"
+        by_decision[decision if decision in by_decision else "unknown"] += 1
+
+        site_type = (profile.site_meta or {}).get("type") or "unknown"
+        by_type[site_type] = by_type.get(site_type, 0) + 1
+
+        last_verified = profile.last_verified
+        if last_verified is not None:
+            aware = (
+                last_verified
+                if last_verified.tzinfo
+                else last_verified.replace(tzinfo=timezone.utc)
+            )
+            if (now - aware).days > 14:
+                stale_count += 1
+
+    return {
+        "total": len(rows),
+        "by_decision": by_decision,
+        "by_type": by_type,
+        "stale_count": stale_count,
     }
 
 

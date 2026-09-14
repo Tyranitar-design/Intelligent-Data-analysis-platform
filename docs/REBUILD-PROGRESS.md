@@ -1283,3 +1283,52 @@ RESULT: all checks passed
 
 - 站点库 `/sites`（画像资产化，P7 剩余）
 - 运行监视 `/monitor`、接入管理 `/integrations`（P8 剩余）
+
+---
+
+## 阶段 P7a · 站点库（v4 第一档收官）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v4.md` §4.3（站点库 / 第一档）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 统计端点 | `GET /discover/profiles/stats` | 判定/类型分布 + 过期计数（>14 天）；路由注册在 `{profile_id}` **之前**（测试守护防遮蔽） |
+| 列表增强 | `list_profiles` | 补 `field_count` |
+| 站点库页 | `frontend/src/pages/Sites.tsx` | 统计条 + 判定筛选 + 域名搜索 + 卡片网格（置信/覆盖/字段/时效/过期角标）+ 详情抽屉（访问状态/结构/字段表/策略/判定/时间线）+ **重新探测**（复用 analyze force_refresh=true） |
+| 入口 | 侧边栏「采集链路」新增「站点库」 | |
+| 测试 | `tests/integration/test_profiles_stats.py` | 2 个（delta 聚合 + 路由遮蔽守护） |
+| 验证 | `scripts/verify_sites_p7a.py` | 8 项断言 + 双截图 |
+
+### 验收（实机门禁 8/8，证据 `docs/evidence/p7a-sites/`）
+
+```
+OK  profiles available  --  count=3 first=docs.python.org
+OK  list carries field_count  --  field_count=2
+OK  stats total matches  --  total=3
+OK  stats by_decision populated  --  {'proceed': 1, 'confirm_required': 2, 'blocked': 0}
+OK  sites page renders (stats + cards) / profile drawer renders (access + fields)
+RESULT: all checks passed
+```
+
+实况：docs.python.org（可采）/ www.iana.org / example.com（待确认）三张真实画像。
+
+### v4 第一档收官
+
+| 页面 | 状态 |
+|---|---|
+| 站点库 `/sites` | ✅（本阶段） |
+| 数据集详情 `/datasets/:id` | ✅（P8c） |
+| 合规中心 `/compliance` | ✅（P8a） |
+| 接入管理 `/integrations` | ⏳ 待做 |
+
+### 遗留
+
+- 探测层 `fields[].path` 存在 source 前缀重复（如 `css:css:[role='main']`），
+  展示层不再拼接，待探测层统一清洗。
+- 批量操作（多选重探测 / 导出画像）未做（v4 可选互动）。
+- 接入管理 `/integrations`、运行监视 `/monitor`（P8 剩余）。

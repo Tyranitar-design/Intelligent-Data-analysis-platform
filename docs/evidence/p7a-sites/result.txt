@@ -1,0 +1,9 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    profiles available  --  count=3 first=docs.python.org
+  OK    list carries field_count  --  field_count=2
+  OK    stats total matches  --  total=3
+  OK    stats by_decision populated  --  {'proceed': 1, 'confirm_required': 2, 'blocked': 0, 'unknown': 0}
+  OK    sites page renders (stats + cards)  --  
+  OK    profile drawer renders (access + fields)  --  
+RESULT: all checks passed

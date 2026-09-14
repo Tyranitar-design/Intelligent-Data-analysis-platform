@@ -1538,3 +1538,52 @@ RESULT: all checks passed
 
 - 分页遍历（多分片）尚未进入实际使用场景——当前任务单分片，重入路径已就绪；
 - 进程被杀后的强一致恢复（WAL 级）超出本机单用户的必要范围。
+
+---
+
+## 阶段 P10 · 生产化三件套（O5 备份恢复 + O4 指标 + O2 部署包）
+
+状态：**已完成（云端执行部分标注待办）✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v4.md` §3.5（O2 / O4 / O5）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 备份 | `scripts/backup_db.py` | SQLite **在线备份 API**（服务运行中也一致）+ sha256 旁车 + 轮转（默认 10 份） |
+| 恢复 | `scripts/restore_db.py` | 默认 dry-run；验真 sha256；恢复前自动另存当前库（防手滑）；在线备份 API 写入 |
+| 指标 | `GET /api/v1/monitor/metrics` | Prometheus 文本格式（零依赖实现）：任务/调度/限速/存储/资产/判定 共 10 组指标 |
+| 指标页 | `Monitor.tsx` | 存储明细下新增「指标导出」说明条 |
+| 部署包 | `deploy/mcp-client-config.example.json` + `DEPLOY-MCP.md` | 双形态部署步骤 / 校验命令 / Hermes 接入 / 安全边界；**云端执行待环境就绪** |
+| 验证 | `scripts/verify_backup_restore.py` | 10 项断言：备份 → 标记注入 → dry-run → 恢复 → 逻辑指纹一致 → 清理 |
+| 测试 | `tests/integration/test_metrics_api.py` | 2 个（格式 / 值一致性） |
+
+### 验收（实机门禁）
+
+备份/恢复演练 **10/10**：
+
+```
+OK  backup created / backup count grows / sha256 sidecar valid
+OK  marker injected / restore dry-run keeps marker / restore applied
+OK  marker gone after restore / table count matches backup
+OK  logical content matches backup (schema + row counts)
+OK  drill artifacts cleaned
+```
+
+指标契约 2/2（pytest 全绿）。
+
+### 关键设计决定
+
+1. **备份用 SQLite 在线备份 API**（非文件复制）——服务运行中也得到一致快照；
+2. **恢复默认 dry-run** + sha256 验真 + 自动另存——三重防手滑；
+3. **逻辑等价校验代替字节级 sha**——SQLite 写入会更新文件头 change-counter，
+   backup API 保证逻辑等价而非字节一致（校验 = schema + 每表行数指纹）；
+4. 脚本输出统一 **ASCII 标记**（`[ok] backup-created` / `[dry-run]`）——
+   延续 P6 教训：跨进程捕获输出时中文编码不可靠，验证只匹配 ASCII 标记。
+
+### 遗留
+
+- O3 两形态协作（本机 ↔ Hermes）未做——依赖云端环境（Lite 形态）；
+- 指标未接入 scrape 端（compose 中 Prometheus/Grafana 尚未联调）。

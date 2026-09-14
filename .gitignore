@@ -27,6 +27,7 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 backend/*.db
+backend/backups/
 backend/data/*.db
 backend/data/raw/
 backend/data/models/

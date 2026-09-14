@@ -1,0 +1,11 @@
+  OK    backup created  --  [ok] backup-created: data_platform.db.bak-20260914-131011 (598,016 bytes, sha256=78d6b9d0b6dc28fa...)
+  OK    backup count grows  --  1 -> 2
+  OK    sha256 sidecar valid  --  sha=78d6b9d0b6dc28fa…
+  OK    marker injected  --  
+  OK    restore dry-run keeps marker  --  
+  OK    restore applied  --  
+  OK    marker gone after restore  --  
+  OK    table count matches backup  --  after=23 backup=23
+  OK    logical content matches backup (schema + row counts)  --  digest=ef37fb85aee914fe...
+  OK    drill artifacts cleaned  --  removed=['data_platform.db.bak-20260914-131012']
+RESULT: all checks passed

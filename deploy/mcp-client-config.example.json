@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "webinsight": {
+      "url": "http://<TARGET_HOST>:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer <MCP_API_KEY>"
+      }
+    }
+  }
+}

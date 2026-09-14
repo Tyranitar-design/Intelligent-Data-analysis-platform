@@ -15,15 +15,18 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from api.core.config import settings
 from api.core.database import get_db
 from api.models import (
+    AuditLog,
     CollectItem,
     CollectJob,
     CollectSchedule,
+    ComplianceVerdict,
     Dataset,
     SiteProfile,
 )
@@ -114,3 +117,131 @@ def monitor_stats(db: Session = Depends(get_db)) -> dict:
         "rate": rate,
         "storage": storage,
     }
+
+
+@router.get(
+    "/metrics", summary="Prometheus 指标导出", response_class=PlainTextResponse
+)
+def prometheus_metrics(db: Session = Depends(get_db)) -> str:
+    """Prometheus 文本格式指标（零依赖实现）。
+
+    指标命名遵循 ``webinsight_*`` 前缀；所有值为 gauge（当前快照）。
+    可直接接入 Prometheus scrape，或用于人工诊断。
+    """
+    from collect.ratelimit import get_shared_limiter
+
+    lines: list[str] = []
+
+    def add(name: str, help_text: str, rows: list[tuple[str | None, float]]) -> None:
+        lines.append(f"# HELP {name} {help_text}")
+        lines.append(f"# TYPE {name} gauge")
+        for labels, value in rows:
+            if labels:
+                lines.append(f"{name}{{{labels}}} {value}")
+            else:
+                lines.append(f"{name} {value}")
+
+    # ---- 采集任务 ----
+    job_rows = db.execute(
+        select(CollectJob.status, func.count()).group_by(CollectJob.status)
+    ).all()
+    add(
+        "webinsight_jobs",
+        "collect jobs by status",
+        [(f'status="{status}"', float(count)) for status, count in job_rows]
+        or [("", 0.0)],
+    )
+
+    # ---- 调度 ----
+    schedules_total = db.execute(
+        select(func.count()).select_from(CollectSchedule)
+    ).scalar_one()
+    schedules_enabled = db.execute(
+        select(func.count())
+        .select_from(CollectSchedule)
+        .where(CollectSchedule.enabled.is_(True))
+    ).scalar_one()
+    add(
+        "webinsight_schedules",
+        "schedules by state",
+        [
+            ('state="enabled"', float(schedules_enabled)),
+            ('state="total"', float(schedules_total)),
+        ],
+    )
+
+    # ---- 限速（进程级共享限速器） ----
+    rate_stats = get_shared_limiter().stats()
+    add(
+        "webinsight_rate_current_per_second",
+        "current adaptive rate per domain",
+        [
+            (f'domain="{domain}"', float(snap.get("current_per_second", 0.0)))
+            for domain, snap in rate_stats.items()
+        ]
+        or [("", 0.0)],
+    )
+    add(
+        "webinsight_rate_throttle_events",
+        "throttle events per domain",
+        [
+            (f'domain="{domain}"', float(snap.get("throttle_events", 0)))
+            for domain, snap in rate_stats.items()
+        ]
+        or [("", 0.0)],
+    )
+
+    # ---- 存储 ----
+    db_size: int | None = None
+    table_count: int | None = None
+    try:
+        if settings.DATABASE_URL.startswith("sqlite"):
+            from database.models import resolve_default_db_path
+
+            db_path = Path(resolve_default_db_path())
+            if db_path.exists():
+                db_size = db_path.stat().st_size
+            table_count = db.execute(
+                text("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")
+            ).scalar_one()
+    except Exception:  # noqa: BLE001 - 指标接口不应因统计失败而 500
+        logger.exception("存储指标统计失败")
+    add("webinsight_storage_bytes", "main database file size", [("", float(db_size or 0))])
+    add("webinsight_storage_tables", "table count", [("", float(table_count or 0))])
+
+    # ---- 资产 ----
+    add(
+        "webinsight_datasets",
+        "materialized datasets",
+        [("", float(db.execute(select(func.count()).select_from(Dataset)).scalar_one()))],
+    )
+    add(
+        "webinsight_items",
+        "collect items",
+        [("", float(db.execute(select(func.count()).select_from(CollectItem)).scalar_one()))],
+    )
+    add(
+        "webinsight_profiles",
+        "site profiles",
+        [("", float(db.execute(select(func.count()).select_from(SiteProfile)).scalar_one()))],
+    )
+    add(
+        "webinsight_audit_logs",
+        "audit log entries",
+        [("", float(db.execute(select(func.count()).select_from(AuditLog)).scalar_one()))],
+    )
+
+    # ---- 合规判定 ----
+    verdict_rows = db.execute(
+        select(ComplianceVerdict.decision, func.count()).group_by(
+            ComplianceVerdict.decision
+        )
+    ).all()
+    add(
+        "webinsight_verdicts",
+        "compliance verdicts by decision",
+        [(f'decision="{decision}"', float(count)) for decision, count in verdict_rows]
+        or [("", 0.0)],
+    )
+
+    return "\n".join(lines) + "\n"

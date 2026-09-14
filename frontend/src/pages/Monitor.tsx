@@ -288,6 +288,11 @@ export default function MonitorPage() {
             value={`${stats?.queue.schedules_enabled ?? '—'} 启用 / ${stats?.queue.schedules_total ?? '—'}`}
           />
         </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-3 py-2.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">指标导出</span>
+          <span className="mono-tag">GET /api/v1/monitor/metrics</span>
+          Prometheus 文本格式 —— 可接入 scrape，或用于人工诊断
+        </div>
       </Reveal>
     </div>
   )

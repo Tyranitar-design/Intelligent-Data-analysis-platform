@@ -57,6 +57,7 @@ class AuditLog(Base):
             "target_type": self.target_type,
             "target_id": self.target_id,
             "verdict_row_id": self.verdict_id,
+            "request_digest": self.request_digest,
             "result": self.result,
             "detail": self.detail or {},
             "ip": self.ip,

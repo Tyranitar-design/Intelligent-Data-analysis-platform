@@ -2,6 +2,7 @@
 """
 数据库模型 - 统一的数据库操作层
 """
+import os
 import sqlite3
 import json
 from datetime import datetime
@@ -9,13 +10,66 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
+def _parse_sqlite_path(url: str) -> Optional[Path]:
+    """从 sqlite URL 解析文件路径；非 sqlite 或无法解析时返回 None。
+
+    统一配置源的底层实现：让本模块与 SQLAlchemy 引擎使用同一份
+    ``DATABASE_URL``，避免"数据浏览走一个库、采集写入走另一个库"。
+    """
+    url = (url or "").strip()
+    if not url.startswith("sqlite") or ":///" not in url:
+        return None
+    raw = url.split(":///", 1)[1]
+    # sqlite:////abs/path → raw = "/abs/path"；sqlite:///D:/x → raw = "D:/x"
+    if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
+        raw = raw[1:]  # "/D:/x" → "D:/x"
+    if not raw:
+        return None
+    path = Path(raw)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    return path
+
+
+def _database_url_from_env_file() -> Optional[str]:
+    """读取 backend/.env 中的 DATABASE_URL（单键轻量解析，不引依赖）。"""
+    env_path = Path(__file__).parent.parent / ".env"
+    if not env_path.exists():
+        return None
+    try:
+        for line in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            if key.strip() == "DATABASE_URL":
+                return value.strip().strip('"').strip("'")
+    except OSError:
+        return None
+    return None
+
+
+def resolve_default_db_path() -> Path:
+    """解析默认数据库文件路径（统一配置源）。
+
+    优先级：
+        1. 环境变量 ``DATABASE_URL``（测试隔离 / 容器部署入口）
+        2. ``backend/.env`` 的 ``DATABASE_URL``（本机开发）
+        3. 历史默认 ``backend/data_platform.db``
+    """
+    for url in (os.environ.get("DATABASE_URL"), _database_url_from_env_file()):
+        parsed = _parse_sqlite_path(url or "")
+        if parsed is not None:
+            return parsed
+    return Path(__file__).parent.parent / "data_platform.db"
+
+
 class Database:
     """统一数据库管理器"""
 
     def __init__(self, db_path: str = None):
         if db_path is None:
-            base_dir = Path(__file__).parent.parent
-            db_path = base_dir / "data_platform.db"
+            db_path = resolve_default_db_path()
 
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

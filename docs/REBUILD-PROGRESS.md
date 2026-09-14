@@ -981,3 +981,121 @@ RESULT: all checks passed
    作为 P6 新前端的设计基础保留，还是推倒重做？
 3. P6 前端体积治理方案确认：移除 `antd`（与 shadcn/ui 重复）、图表库收敛为 ECharts 单一
    （现为 plotly + echarts + recharts 三套并存），预计可把 5.35 MB 主包降至 1.5 MB 以内。
+
+---
+
+## 阶段 D1 · 测试库隔离 + 主库脏表清理
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`docs/UPGRADE-PLAN-v4.md` §1.2 问题 1 + `docs/UPGRADE-PLAN-v5.md` §4.3
+
+### 背景（先复现，再修复）
+
+主库 `backend/data_platform.db` 中堆积 `dataset_smoke_*` 表 —— smoke 契约测试
+每次运行都在主库物化数据集，只增不减。
+
+实测复现（跑一次全量测试）：
+
+```
+跑前：41 张表 / 21 张 smoke 表 / datasets 10 行
+跑后：43 张表 / 23 张 smoke 表 / datasets 12 行   ← 每跑一次 +2 表 +2 记录
+```
+
+根因是**两条数据库腿**各自为政：
+
+| 腿 | 实现 | 配置源 |
+|---|---|---|
+| SQLAlchemy | `api/core/database.py` | `settings.DATABASE_URL`（读 env / .env） |
+| sqlite3 | `database/models.py` | **硬编码** `backend/data_platform.db` |
+
+且第二条腿被 `crawlers/dataset_service.py`（smoke 保存数据集）与
+`api/routers/data.py`（数据浏览）使用 —— 测试跑 smoke 链路时必然写主库。
+
+### 修复（4 件）
+
+1. **`database/models.py`**：`Database` 默认路径改走统一配置源，新增
+   `resolve_default_db_path()`（env `DATABASE_URL` > `backend/.env` > 历史默认）
+   与 `_parse_sqlite_path()`。两条数据库腿自此由同一份配置驱动。
+2. **`tests/conftest.py`**（新增）：在任何后端 import 之前把 `DATABASE_URL`
+   指向会话级临时库（`%TEMP%/webinsight_pytest/test_data_platform.db`），
+   session 级 fixture 建表；每次会话全新开始，互不串味。
+3. **`scripts/clean_smoke_tables.py`**（新增）：主库清理工具，预演 / `--apply`
+   两模式、自动备份、幂等。
+4. **`tests/unit/test_db_isolation.py`**（新增）：两条哨兵 ——
+   ① 测试运行时两条腿都指向隔离库；② 主库不允许出现 `dataset_smoke_*` 表。
+
+### 验收命令与实测输出
+
+```
+$ .\venv\Scripts\python.exe scripts\clean_smoke_tables.py --apply
+已备份主库: data_platform.db.bak-20260914-112432
+清理完成: 剩余 smoke 表 0，主库现有 20 张表。
+
+$ .\venv\Scripts\python.exe -m pytest
+107 passed, 21 warnings in 42.11s        ← 105 原有 + 2 哨兵，全绿
+
+# 隔离验证（跑完全量测试后的对照）
+主库   : 20 张表（不变）· smoke 表 0 · datasets 0 行
+测试库 : %TEMP%\webinsight_pytest\test_data_platform.db
+         22 张表 · smoke 表 2（新产生的两份全部落在隔离库内）
+```
+
+### 遗留
+
+- pytest 警告（Pydantic v2 / SQLAlchemy 2.0 deprecation）为存量问题，另行清理。
+- P6「待确认」三条仍待 YG 拍板。
+- 下一步：F1 动效基础设施（v5 蓝图 P11a）。
+
+---
+
+## 阶段 F1 · 动效基础设施（v5 蓝图 P11a）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`docs/UPGRADE-PLAN-v5.md` §2.2（动效四层分级）、§4.2（P11a）
+
+### 交付（L0/L1 基础设施 + 最小接入）
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 滚动揭示 | `components/motion/Reveal.tsx` | position-driven（whileInView）、once、错峰延迟、reduced-motion 直落 |
+| 数字滚动 | `components/motion/CountUp.tsx` | rAF + easeOutCubic，零依赖；更新时从当前值滚到新值 |
+| 卡片微倾斜 | `components/motion/Tilt.tsx` | ±2.5° 鼠标跟随；reduced-motion 不启用 |
+| 页面转场 | `components/layout/MainLayout.tsx` | AnimatePresence + useOutlet，180ms；reduced-motion 时禁用 |
+| 图表编排 | `lib/echarts.ts` | `CHART_MOTION`（800ms cubicOut）；后端显式 option 优先 |
+| reduced-motion 补强 | `index.css` | 补 `scroll-behavior: auto` 覆盖 |
+
+接入点：工作台（4 张统计卡 CountUp + Tilt、两个区块 Reveal）、数据分析（图表动效）、全局（页面转场）。
+
+### 验收（实机门禁，证据落盘 `docs/evidence/f1-verify/`）
+
+```
+$ .\venv\Scripts\python.exe scripts\verify_frontend_f1.py
+OK    frontend ready / backend ready
+OK    brand visible / stat cards rendered (>=4)
+OK    countup shows number  --  19
+OK    transition has in-between frames
+      samples=['1','0.500352','0.286616','0','0.25953','0.72312','0.985072','0.999999']
+OK    discover page rendered / route back to dashboard
+OK    reduced-motion renders + final values
+OK    no console errors (normal mode / reduced-motion)
+RESULT: all checks passed
+```
+
+转场采样序列（旧页 1→0 → 新页 0→1 的完整中间帧）是「动画在真实路径
+上被触发」的直接证据——复刻纪律「形状完整 ≠ 在跑」的正面应用。
+
+### 附带验证
+
+- `npx tsc --noEmit`：本次涉及文件零错误；存量 24 个错误全部在 `_legacy`
+  与未使用 UI 组件（react-day-picker / embla 等未安装依赖），留待 P6 待办清理。
+- `npm run build` 绿（26.8s）；vendor 分包（react/motion/chart）后首屏
+  JS+CSS ≈ 176KB gzip，低于 v5 蓝图 300KB 预算。
+
+### 遗留
+
+- 存量 tsc 错误清理（与 `_legacy` 归档策略一并处理）。
+- L2/L3 动效（采集管道可视化、合规矩阵、展示岛）按 v5 蓝图 P11a 后续 / P12 推进。

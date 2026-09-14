@@ -4,7 +4,8 @@
 
 Canonical backend entrypoint.
 """
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
+import asyncio
 import logging
 import time
 
@@ -13,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.core.config import settings
-from api.core.database import init_db
+from api.core.database import get_db_session, init_db
 from api.routers import (
     analysis,
     analytics,
@@ -50,10 +51,24 @@ def _try_import_optional_router(module_name: str):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期"""
+    from collect.schedule_runner import schedule_loop  # 延迟导入：保持启动顺序清晰
+
     logger.info(f"🚀 启动 {settings.APP_NAME} v{settings.APP_VERSION}")
     init_db()
     logger.info("✅ 数据库初始化完成")
+
+    # 采集调度循环：常驻检查到期的调度规则。
+    # 仅长驻进程（uvicorn）触发；测试的 TestClient 不进入 lifespan，不受影响。
+    schedule_task = asyncio.create_task(
+        schedule_loop(get_db_session, settings.SCHEDULE_TICK_SECONDS)
+    )
+    logger.info("⏰ 调度循环已启动（检查间隔 %ss）", settings.SCHEDULE_TICK_SECONDS)
+
     yield
+
+    schedule_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await schedule_task
     logger.info("👋 应用关闭")
 
 

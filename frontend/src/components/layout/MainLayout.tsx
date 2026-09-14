@@ -3,6 +3,7 @@ import { NavLink, useLocation, useOutlet } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   Activity,
+  CalendarClock,
   ChevronLeft,
   Database,
   FileBarChart,
@@ -48,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/discover', label: '站点分析', icon: Radar, hint: '输入 URL 判别可采性' },
       { to: '/collect', label: '采集任务', icon: Globe2, hint: '方案、任务与进度' },
+      { to: '/schedules', label: '调度中心', icon: CalendarClock, hint: '定时与自动采集' },
     ],
   },
   {

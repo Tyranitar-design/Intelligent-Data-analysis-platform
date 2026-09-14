@@ -17,6 +17,7 @@ from api.models.compliance_verdict import ComplianceVerdict
 from api.models.collect_plan import CollectPlan
 from api.models.collect_job import CollectItem, CollectJob, CollectTask
 from api.models.audit_log import AuditLog
+from api.models.schedule import CollectSchedule
 
 __all__ = [
     "Base",
@@ -34,4 +35,5 @@ __all__ = [
     "CollectTask",
     "CollectItem",
     "AuditLog",
+    "CollectSchedule",
 ]

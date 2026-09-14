@@ -14,6 +14,7 @@ import MainLayout from '@/components/layout/MainLayout'
 import DashboardPage from '@/pages/Dashboard'
 import DiscoverPage from '@/pages/Discover'
 import CollectPage from '@/pages/Collect'
+import SchedulesPage from '@/pages/Schedules'
 import DatasetsPage from '@/pages/Datasets'
 import AnalyticsPage from '@/pages/Analytics'
 import ReportsPage from '@/pages/Reports'
@@ -36,6 +37,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="discover" element={<DiscoverPage />} />
           <Route path="collect" element={<CollectPage />} />
+          <Route path="schedules" element={<SchedulesPage />} />
           <Route path="datasets" element={<DatasetsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="reports" element={<ReportsPage />} />

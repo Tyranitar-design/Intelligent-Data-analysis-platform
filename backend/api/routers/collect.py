@@ -8,6 +8,9 @@
 - ``GET  /api/v1/collect/jobs/{id}``  任务详情
 - ``GET  /api/v1/collect/items``      数据条目查询
 - ``GET  /api/v1/collect/registry``   注册的能力清单
+- ``GET  /api/v1/collect/plans``      采集计划列表
+- ``GET  /api/v1/collect/schedules``  调度规则（列表 / 创建 / 更新 / 删除）
+- ``POST /api/v1/collect/schedules/{id}/run``  立即执行一次调度
 """
 from __future__ import annotations
 
@@ -23,12 +26,20 @@ from api.models import (
     CollectItem,
     CollectJob,
     CollectPlan,
+    CollectSchedule,
     CollectTask,
     ComplianceVerdict,
     SiteProfile,
 )
-from api.schemas.collect import PlanRequest, RunRequest
+from api.schemas.collect import PlanRequest, RunRequest, ScheduleCreate, ScheduleUpdate
 from collect.registry import build_default_registry
+from collect.schedule_runner import (
+    compliance_block_reason,
+    compute_next_run,
+    execute_schedule,
+    load_plan_verdict,
+    validate_frequency,
+)
 from collect.scheduler import CollectScheduler
 from discover.profile import SiteProfiler
 
@@ -373,3 +384,152 @@ def _select_fields(profile: dict, requirement: str | None) -> list[dict]:
         return [f for f in fields if float(f.get("coverage") or 0) >= 0.4]
 
     return [f for f in fields if f.get("name") in wanted]
+
+
+# --------------------------------------------------------------------------- #
+# 计划查询
+# --------------------------------------------------------------------------- #
+
+
+@router.get("/plans", summary="采集计划列表")
+def list_plans(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    total = db.execute(select(func.count()).select_from(CollectPlan)).scalar_one()
+    rows = (
+        db.execute(
+            select(CollectPlan)
+            .order_by(CollectPlan.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        .scalars()
+        .all()
+    )
+    return {"total": total, "items": [r.to_dict() for r in rows]}
+
+
+# --------------------------------------------------------------------------- #
+# 调度规则
+# --------------------------------------------------------------------------- #
+
+
+@router.get("/schedules", summary="调度规则列表")
+def list_schedules(db: Session = Depends(get_db)) -> dict:
+    now = datetime.now()
+    rows = (
+        db.execute(select(CollectSchedule).order_by(CollectSchedule.id.desc()))
+        .scalars()
+        .all()
+    )
+    return {"items": [r.to_dict(now=now) for r in rows]}
+
+
+@router.post("/schedules", summary="创建调度规则")
+def create_schedule(payload: ScheduleCreate, db: Session = Depends(get_db)) -> dict:
+    plan = db.get(CollectPlan, payload.plan_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="采集计划不存在")
+
+    # 合规预检：无人值守路径只接受可执行（proceed）的计划
+    block_reason = compliance_block_reason(load_plan_verdict(db, plan))
+    if block_reason:
+        raise HTTPException(
+            status_code=400,
+            detail=f"该计划当前不可用于调度：{block_reason}",
+        )
+
+    try:
+        validate_frequency(
+            payload.frequency,
+            interval_hours=payload.interval_hours,
+            time_of_day=payload.time_of_day,
+            weekday=payload.weekday,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    now = datetime.now()
+    schedule = CollectSchedule(
+        name=payload.name,
+        plan_id=payload.plan_id,
+        frequency=payload.frequency,
+        interval_hours=payload.interval_hours,
+        time_of_day=payload.time_of_day,
+        weekday=payload.weekday,
+        enabled=payload.enabled,
+    )
+    if schedule.enabled:
+        schedule.next_run_at = compute_next_run(schedule, now=now)
+
+    db.add(schedule)
+    db.commit()
+    db.refresh(schedule)
+    return {"schedule": schedule.to_dict(now=now)}
+
+
+@router.patch("/schedules/{schedule_id}", summary="更新调度规则")
+def update_schedule(
+    schedule_id: int, payload: ScheduleUpdate, db: Session = Depends(get_db)
+) -> dict:
+    schedule = db.get(CollectSchedule, schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="调度规则不存在")
+
+    if payload.name is not None:
+        schedule.name = payload.name
+    if payload.interval_hours is not None:
+        schedule.interval_hours = payload.interval_hours
+    if payload.time_of_day is not None:
+        schedule.time_of_day = payload.time_of_day
+    if payload.weekday is not None:
+        schedule.weekday = payload.weekday
+
+    try:
+        validate_frequency(
+            schedule.frequency,
+            interval_hours=schedule.interval_hours,
+            time_of_day=schedule.time_of_day,
+            weekday=schedule.weekday,
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if payload.enabled is not None:
+        schedule.enabled = payload.enabled
+
+    now = datetime.now()
+    schedule.next_run_at = (
+        compute_next_run(schedule, base=schedule.last_run_at, now=now)
+        if schedule.enabled
+        else None
+    )
+    db.commit()
+    db.refresh(schedule)
+    return {"schedule": schedule.to_dict(now=now)}
+
+
+@router.delete("/schedules/{schedule_id}", summary="删除调度规则")
+def delete_schedule(schedule_id: int, db: Session = Depends(get_db)) -> dict:
+    schedule = db.get(CollectSchedule, schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="调度规则不存在")
+    db.delete(schedule)
+    db.commit()
+    return {"deleted": True, "schedule_id": schedule_id}
+
+
+@router.post("/schedules/{schedule_id}/run", summary="立即执行一次调度")
+async def run_schedule_now(
+    schedule_id: int, db: Session = Depends(get_db)
+) -> dict:
+    """手动触发一条规则：与调度循环共用 ``execute_schedule`` 执行路径。"""
+    schedule = db.get(CollectSchedule, schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="调度规则不存在")
+
+    result = await execute_schedule(db, schedule)
+    return {"result": result, "schedule": schedule.to_dict()}

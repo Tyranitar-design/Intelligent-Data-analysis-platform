@@ -2,7 +2,7 @@
 采集 · 请求模型
 ===============
 """
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -43,3 +43,33 @@ class ItemQuery(BaseModel):
     job_id: Optional[int] = None
     limit: int = Field(default=50, ge=1, le=500)
     offset: int = Field(default=0, ge=0)
+
+
+class ScheduleCreate(BaseModel):
+    """创建调度规则。"""
+
+    name: str = Field(..., min_length=1, max_length=200, description="规则名称")
+    plan_id: int = Field(..., description="关联的采集计划 ID")
+    frequency: Literal["hourly", "daily", "weekly"] = Field(
+        ..., description="频率类型：每 N 小时 / 每天 / 每周"
+    )
+    interval_hours: Optional[int] = Field(
+        default=None, description="hourly：间隔小时数（1-24）"
+    )
+    time_of_day: Optional[str] = Field(
+        default=None, description="daily / weekly：执行时刻 HH:MM"
+    )
+    weekday: Optional[int] = Field(
+        default=None, description="weekly：0=周一 … 6=周日"
+    )
+    enabled: bool = Field(default=True, description="创建后是否立即启用")
+
+
+class ScheduleUpdate(BaseModel):
+    """更新调度规则（只传需要修改的字段）。"""
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    interval_hours: Optional[int] = None
+    time_of_day: Optional[str] = None
+    weekday: Optional[int] = None
+    enabled: Optional[bool] = None

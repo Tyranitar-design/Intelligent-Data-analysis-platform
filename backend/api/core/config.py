@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     # Celery
     CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/0", description="Celery Broker")
     CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/0", description="Celery 结果后端")
+
+    # 调度器（采集定时规则的检查间隔）
+    SCHEDULE_TICK_SECONDS: float = Field(
+        default=15.0, description="采集调度循环的检查间隔（秒）"
+    )
     
     # 爬虫
     CRAWL_MAX_CONCURRENT: int = Field(default=100, description="最大并发爬取数")

@@ -187,11 +187,13 @@ class SiteProfiler:
                     access_state=existing.access_state or {},
                     declared_authorization=declared_authorization,
                 )
+                # 判定必须留痕：沿用画像但本次判定要落新记录——declared_authorization
+                # 等输入不同会产生不同决策，若复用"最近一条旧记录"的 ID，调用方
+                # 引用的结论会与本次判定不符（合规门加固后暴露的既有缺陷）。
+                record = self._record_verdict(existing.id, url, verdict)
                 payload = verdict.to_dict()
-                latest = self._latest_verdict(existing.id)
-                if latest is not None:
-                    payload["verdict_id"] = latest.verdict_uid
-                    payload["verdict_row_id"] = latest.id
+                payload["verdict_id"] = record.verdict_uid
+                payload["verdict_row_id"] = record.id
                 return AnalyzeResult(
                     profile=existing.to_dict(),
                     verdict=payload,

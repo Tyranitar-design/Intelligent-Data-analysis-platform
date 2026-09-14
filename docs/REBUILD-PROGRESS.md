@@ -1099,3 +1099,52 @@ RESULT: all checks passed
 
 - 存量 tsc 错误清理（与 `_legacy` 归档策略一并处理）。
 - L2/L3 动效（采集管道可视化、合规矩阵、展示岛）按 v5 蓝图 P11a 后续 / P12 推进。
+
+---
+
+## 阶段 E2 · 定时调度（v5 蓝图 P7 核心项）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`docs/UPGRADE-PLAN-v5.md` §4.3（如果只做三件事 · 第三件）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 调度模型 | `api/models/schedule.py` | 结构化频率（hourly / daily / weekly），本机时间口径 |
+| 调度运行器 | `collect/schedule_runner.py` | next_run 计算（零依赖）+ 到期触发 + 常驻循环 + 合规门 |
+| API | `api/routers/collect.py` | plans 列表 + schedules CRUD + 立即执行（共 6 个新端点） |
+| 前端 | `frontend/src/pages/Schedules.tsx` | 调度中心：可视化频率选择、启停、立即执行、累计统计 |
+| 测试 | `tests/unit/test_schedule_next_run.py` + `tests/integration/test_schedules_api.py` | 24 个（频率计算 15 + API/合规 9） |
+
+### 合规加固（两处，均在实机验证中暴露后修复）
+
+1. **调度路径合规门**：无人值守路径只放行 `proceed` 计划——创建调度时拦截（400），
+   执行时兜底（`skipped_compliance` + 顺延 next_run 防死循环）。与 `/run` 端点同源检查。
+2. **`discover/profile.py` 缓存路径判定留痕缺陷**（既有 bug，被合规门暴露）：
+   画像命中缓存时本次判定不落库、`verdict_id` 引用旧记录——`declared_authorization`
+   变化时调用方拿到与结论不符的 uid。修复：缓存路径同样 `_record_verdict`。
+
+### 验收（实机门禁 13/13，证据 `docs/evidence/e2-verify/`）
+
+```
+$ python scripts/verify_schedules_e2.py
+OK  plan A confirm_required (no declaration)          <- 反例：未声明授权
+OK  compliance gate rejects confirm_required plan     <- 合规门拦截
+OK  plan B proceed (declared official)                <- 正例：声明官方开放
+OK  schedule created with next_run / pause / resume
+OK  schedule loop auto-triggered  --  run_count=1 last_job=1
+OK  auto-triggered job recorded   --  job=1 status=succeeded items=1
+OK  manual run executed           --  job=2 status=succeeded run_count=2
+OK  frontend schedules page renders list
+OK  cleanup test data
+RESULT: all checks passed
+```
+
+### 遗留
+
+- 调度循环周期由 `SCHEDULE_TICK_SECONDS` 控制（默认 15s；仅长驻进程启用，测试不触发）。
+- P7 剩余项：E3 断点续传重入恢复、`/sites` 站点库、`/collect/:jobId` 任务详情。
+- `_latest_verdict` 成为 dead code（保留待用）。

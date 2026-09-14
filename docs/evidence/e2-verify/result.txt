@@ -1,0 +1,14 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    plan A confirm_required (no declaration)  --  plan_id=1 decision=confirm_required
+  OK    compliance gate rejects confirm_required plan  --  blocked by compliance gate
+  OK    plan B proceed (declared official)  --  plan_id=2 decision=proceed
+  OK    schedule created with next_run  --  next=2026-09-15T06:00:00
+  OK    pause clears next_run  --  
+  OK    resume recomputes next_run  --  next=2026-09-15T06:00:00
+  OK    schedule loop auto-triggered  --  run_count=1 last_job=1
+  OK    auto-triggered job recorded  --  job=1 status=succeeded items=1
+  OK    manual run executed  --  job=2 status=succeeded run_count=2
+  OK    frontend schedules page renders list  --  
+  OK    cleanup test data  --  plan=2, plan=1
+RESULT: all checks passed

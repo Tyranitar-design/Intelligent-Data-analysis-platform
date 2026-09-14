@@ -38,3 +38,13 @@ class VerdictQuery(BaseModel):
 
     decision: Optional[Literal["proceed", "confirm_required", "blocked"]] = None
     domain: Optional[str] = None
+
+
+class AuthorizationPatch(BaseModel):
+    """补齐授权声明（解锁 ``confirm_required`` 判定）。"""
+
+    basis: Literal["official", "own_credentials", "written_authorization"] = Field(
+        ..., description="授权基础：官方开放 / 自有凭证 / 书面授权"
+    )
+    operator: str = Field(..., min_length=1, max_length=100, description="操作者标识")
+    note: Optional[str] = Field(default=None, max_length=500, description="授权依据说明")

@@ -13,6 +13,7 @@ import {
   Moon,
   Radar,
   RefreshCw,
+  ShieldCheck,
   Sun,
   X,
 } from 'lucide-react'
@@ -61,6 +62,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/analytics', label: '数据分析', icon: Activity, hint: 'EDA 与挖掘' },
       { to: '/reports', label: '分析报告', icon: FileBarChart, hint: '报告与导出' },
+    ],
+  },
+  {
+    title: '平台治理',
+    items: [
+      { to: '/compliance', label: '合规中心', icon: ShieldCheck, hint: '判定、授权与替代源' },
     ],
   },
 ]

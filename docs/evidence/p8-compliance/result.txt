@@ -1,0 +1,10 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    seed verdicts created  --  confirm_required=2 proceed=1
+  OK    example.com is confirm_required (no declaration)  --  2 pending verdict(s)
+  OK    stats total grows by seeds  --  3 -> 6
+  OK    stats by_decision populated  --  {'proceed': 2, 'confirm_required': 4, 'blocked': 0}
+  OK    stats matrix non-empty  --  2 cells
+  OK    authorization confirmed and unlocked  --  decision=proceed operator=yg-verify
+  OK    compliance page renders  --  
+RESULT: all checks passed

@@ -1148,3 +1148,51 @@ RESULT: all checks passed
 - 调度循环周期由 `SCHEDULE_TICK_SECONDS` 控制（默认 15s；仅长驻进程启用，测试不触发）。
 - P7 剩余项：E3 断点续传重入恢复、`/sites` 站点库、`/collect/:jobId` 任务详情。
 - `_latest_verdict` 成为 dead code（保留待用）。
+
+---
+
+## 阶段 P8a · 合规中心（v5 蓝图 Wow S3 载体）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`docs/UPGRADE-PLAN-v4.md` §4.5（C1）+ `docs/UPGRADE-PLAN-v5.md` §2.3（Wow 时刻）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 统计端点 | `GET /discover/verdicts/stats` | 决策分布 + A×B 矩阵聚合 |
+| 补齐授权 | `PATCH /discover/verdicts/{uid}/authorization` | 写回 operator / basis + 解锁为 proceed + 审计留痕（复用 `mcp.audit.record`） |
+| 前端页面 | `frontend/src/pages/Compliance.tsx` | 统计卡 + A×B 热力矩阵 + 待确认（补齐表单）+ 已阻断（替代源与覆盖率）+ 全部判定（展开四维取证） |
+| 导航 | 侧边栏新增「平台治理」分组 | 合规中心入口 |
+| 测试 | `tests/integration/test_compliance_api.py` | 6 个：stats delta / 解锁+审计 / blocked 拒绝 / proceed 拒绝 / 404 / 枚举校验 |
+
+### 设计要点
+
+- 阻断判定**不提供解锁**——硬边界（技术措施 / 凭证来源 / 数据属性）不因人工确认而改变；
+- 补齐授权是"写回判定 + 审计留痕"的组合动作，审计写入 `audit_logs`
+  （action=`compliance.authorization_confirmed`，外键关联判定记录）；
+- 矩阵用数据驱动着色（没有装饰性颜色），符合"合规判定不加粉饰"的原则。
+
+### 验收（实机门禁 9/9，证据 `docs/evidence/p8-compliance/`）
+
+```
+$ python scripts/verify_compliance_p8.py
+OK  seed verdicts created  --  confirm_required=2 proceed=1
+    example.com -> confirm_required / www.iana.org -> confirm_required / docs.python.org -> proceed
+OK  stats total grows by seeds  --  3 -> 6
+OK  stats by_decision populated  --  {'proceed': 2, 'confirm_required': 4, 'blocked': 0}
+OK  stats matrix non-empty  --  2 cells
+OK  authorization confirmed and unlocked  --  decision=proceed operator=yg-verify
+OK  compliance page renders
+RESULT: all checks passed
+```
+
+种子数据（保留为平台资产）：example.com、www.iana.org（待确认，其中一条已补齐解锁）、
+docs.python.org（可执行）。
+
+### 遗留
+
+- P8 剩余项：审计检索页（`/audit`）、运行监视（`/monitor`）、接入管理（`/integrations`）。
+- 种子判定与审计日志保留（审计不提供逐条删除，清理走保留策略）。

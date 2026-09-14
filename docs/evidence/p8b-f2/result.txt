@@ -1,0 +1,12 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    plan created (proceed)  --  plan_id=1 decision=proceed
+  OK    collect run completed  --  job=1 status=succeeded items=1
+  OK    materialized to dataset  --  dataset=1 rows=1 cols=1
+  OK    fresh confirm_required verdict  --  decision=confirm_required
+  OK    unlocked with audit trail  --  operator=verify-p8b
+  OK    audit log shows unlock action  --  total=2
+  OK    dashboard hero renders  --  slogan found
+  OK    job detail renders (pipeline + items)  --  job=1
+  OK    audit page renders with unlock action  --  
+RESULT: all checks passed

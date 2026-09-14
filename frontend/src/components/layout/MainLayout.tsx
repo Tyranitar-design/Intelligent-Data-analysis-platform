@@ -13,6 +13,7 @@ import {
   Moon,
   Radar,
   RefreshCw,
+  ScrollText,
   ShieldCheck,
   Sun,
   X,
@@ -68,6 +69,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: '平台治理',
     items: [
       { to: '/compliance', label: '合规中心', icon: ShieldCheck, hint: '判定、授权与替代源' },
+      { to: '/audit', label: '审计日志', icon: ScrollText, hint: '谁在何时做了什么' },
     ],
   },
 ]

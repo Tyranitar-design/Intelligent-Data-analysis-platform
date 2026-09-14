@@ -23,6 +23,7 @@ import apiClient from '@/api/client'
 import CountUp from '@/components/motion/CountUp'
 import Reveal from '@/components/motion/Reveal'
 import Tilt from '@/components/motion/Tilt'
+import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/stores/appStore'
 import { cn } from '@/lib/utils'
 
@@ -90,6 +91,37 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
+      {/* ---------------- Hero：平台定位与快捷入口 ---------------- */}
+      <section className="aurora grid-bg overflow-hidden rounded-2xl border border-border/60 px-6 py-7 sm:px-8">
+        <div className="animate-rise relative z-10 flex flex-wrap items-end justify-between gap-5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-[0.16em] text-primary/85">
+              <Radar className="h-3.5 w-3.5" strokeWidth={2.2} />
+              WebInsight
+            </div>
+            <h2 className="mt-2 text-[1.45rem] font-semibold leading-snug tracking-tight sm:text-[1.65rem]">
+              任意站点，从可采判定到洞察报告
+            </h2>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              四维合规判定 · 定时采集与三级去重 · 数据物化与分析 · 全程审计留痕
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Link to="/discover">
+              <Button size="sm">
+                分析一个站点
+                <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </Link>
+            <Link to="/schedules">
+              <Button size="sm" variant="outline">
+                调度中心
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           index={0}

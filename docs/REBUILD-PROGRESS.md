@@ -1196,3 +1196,47 @@ docs.python.org（可执行）。
 
 - P8 剩余项：审计检索页（`/audit`）、运行监视（`/monitor`）、接入管理（`/integrations`）。
 - 种子判定与审计日志保留（审计不提供逐条删除，清理走保留策略）。
+
+---
+
+## 阶段 P8b + F2 · 页面三连（审计检索 / 任务详情 / 工作台 Hero）
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v4.md` §4.9（审计）+ §4.7（任务详情）+ `UPGRADE-PLAN-v5.md` §2.3（工作台 Hero）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 审计端点 | `GET /api/v1/audit/logs` | 过滤（action 前缀 / principal / result / verdict）+ 分页；**不提供删除** |
+| 审计字段 | `AuditLog.to_dict()` | 补 `request_digest` 透传 |
+| 审计页 | `frontend/src/pages/Audit.tsx` | 筛选组 + 留痕表 + 行展开详情（digest / 判定关联 / detail） |
+| 任务详情页 | `frontend/src/pages/JobDetail.tsx` | 数据驱动管道（判别→采集→去重→入库）+ 时间线 + 降级链 + 动态列条目表 + 物化按钮 |
+| 工作台 Hero | `Dashboard.tsx` | 定位语「任意站点，从可采判定到洞察报告」+ 双 CTA |
+| 入口/路由 | Collect 列表详情箭头；`/audit`、`/collect/:jobId` 路由；导航「审计日志」 | |
+
+### 验收（实机门禁 11/11，证据 `docs/evidence/p8b-f2/`）
+
+```
+$ python scripts/verify_pages_p8b.py
+OK  plan created (proceed)  --  plan_id=1 decision=proceed
+OK  collect run completed  --  job=1 status=succeeded items=1
+OK  materialized to dataset  --  dataset=1 rows=1 cols=1
+OK  fresh confirm_required verdict  --  decision=confirm_required
+OK  unlocked with audit trail  --  operator=verify-p8b
+OK  audit log shows unlock action  --  total=2
+OK  dashboard hero renders  --  slogan found
+OK  job detail renders (pipeline + items)  --  job=1
+OK  audit page renders with unlock action
+RESULT: all checks passed
+```
+
+截图：`01-dashboard-hero.png` / `02-job-detail.png` / `03-audit.png`。
+
+### 遗留
+
+- 审计覆盖面：当前仅合规解锁与 MCP 工具调用写审计；采集执行 / 数据集物化 /
+  导出 的审计点仍待补（v4 §4.9 所列动作清单）。
+- P8 剩余项：运行监视（`/monitor`）、接入管理（`/integrations`）。

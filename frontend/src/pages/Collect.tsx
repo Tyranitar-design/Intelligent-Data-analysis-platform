@@ -8,8 +8,16 @@
  * （状态、条目数、质量分、错误分布），点进去才展开分片细节。
  */
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Activity, Loader2, PackageCheck, RefreshCw, TriangleAlert } from 'lucide-react'
+import {
+  Activity,
+  ArrowUpRight,
+  Loader2,
+  PackageCheck,
+  RefreshCw,
+  TriangleAlert,
+} from 'lucide-react'
 
 import apiClient from '@/api/client'
 import { Button } from '@/components/ui/button'
@@ -128,37 +136,47 @@ export default function CollectPage() {
               transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.3) }}
               className="glass glass-hover overflow-hidden rounded-xl"
             >
-              <button
-                type="button"
-                onClick={() =>
-                  setExpanded((current) => (current === job.job_id ? null : job.job_id))
-                }
-                className="flex w-full items-center justify-between gap-4 px-5 py-3.5 text-left"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="mono-tag shrink-0">#{job.job_id}</span>
-                  <span
-                    className={cn(
-                      'badge-dot shrink-0',
-                      STATUS_TONE[job.status] ?? 'badge-info',
-                    )}
-                  >
-                    {STATUS_LABEL[job.status] ?? job.status}
-                  </span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    计划 #{job.plan_id} · 分片 {job.done_tasks}/{job.total_tasks}
-                  </span>
-                </div>
+              <div className="flex w-full items-center gap-2 px-5 py-3.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpanded((current) => (current === job.job_id ? null : job.job_id))
+                  }
+                  className="flex min-w-0 flex-1 items-center justify-between gap-4 text-left"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="mono-tag shrink-0">#{job.job_id}</span>
+                    <span
+                      className={cn(
+                        'badge-dot shrink-0',
+                        STATUS_TONE[job.status] ?? 'badge-info',
+                      )}
+                    >
+                      {STATUS_LABEL[job.status] ?? job.status}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      计划 #{job.plan_id} · 分片 {job.done_tasks}/{job.total_tasks}
+                    </span>
+                  </div>
 
-                <div className="flex shrink-0 items-center gap-5 text-xs">
-                  <Stat label="条目" value={String(job.items_count)} />
-                  <Stat
-                    label="质量"
-                    value={`${Math.round((job.quality_score ?? 0) * 100)}%`}
-                  />
-                  <Stat label="去重命中" value={String(dedupHits(job))} />
-                </div>
-              </button>
+                  <div className="flex shrink-0 items-center gap-5 text-xs">
+                    <Stat label="条目" value={String(job.items_count)} />
+                    <Stat
+                      label="质量"
+                      value={`${Math.round((job.quality_score ?? 0) * 100)}%`}
+                    />
+                    <Stat label="去重命中" value={String(dedupHits(job))} />
+                  </div>
+                </button>
+                <Link
+                  to={`/collect/${job.job_id}`}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-primary"
+                  aria-label={`查看任务 ${job.job_id} 详情`}
+                  title="查看详情"
+                >
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
 
               {expanded === job.job_id && (
                 <div className="border-t border-border/60 px-5 py-4">

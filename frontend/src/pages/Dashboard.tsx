@@ -5,9 +5,8 @@
  * 平台的入口页：一屏之内回答三个问题——
  *   现在有什么（数据资产）、正在做什么（任务）、接下来能做什么（快捷入口）。
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'motion/react'
 import {
   Activity,
   ArrowUpRight,
@@ -21,6 +20,9 @@ import {
 } from 'lucide-react'
 
 import apiClient from '@/api/client'
+import CountUp from '@/components/motion/CountUp'
+import Reveal from '@/components/motion/Reveal'
+import Tilt from '@/components/motion/Tilt'
 import { useAppStore } from '@/stores/appStore'
 import { cn } from '@/lib/utils'
 
@@ -93,21 +95,21 @@ export default function DashboardPage() {
           index={0}
           icon={Database}
           label="数据表"
-          value={loading ? '—' : String(overview?.total_tables ?? 0)}
+          value={loading ? '—' : <CountUp value={overview?.total_tables ?? 0} />}
           hint={`其中 ${datasetTables.length} 张为采集数据集`}
         />
         <StatCard
           index={1}
           icon={Layers}
           label="入库记录"
-          value={loading ? '—' : totalRows.toLocaleString()}
+          value={loading ? '—' : <CountUp value={totalRows} />}
           hint="全部数据表行数合计"
         />
         <StatCard
           index={2}
           icon={Globe2}
           label="采集任务"
-          value={loading ? '—' : String(jobs.length)}
+          value={loading ? '—' : <CountUp value={jobs.length} />}
           hint="最近 6 条"
         />
         <StatCard
@@ -115,19 +117,18 @@ export default function DashboardPage() {
           icon={ServerCog}
           label="服务能力"
           value={
-            capabilities ? String(Object.keys(capabilities.capabilities).length) : '—'
+            capabilities ? (
+              <CountUp value={Object.keys(capabilities.capabilities).length} />
+            ) : (
+              '—'
+            )
           }
           hint={capabilities ? `v${capabilities.version}` : '未连接'}
         />
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="glass overflow-hidden rounded-xl"
-        >
+        <Reveal delay={0.1} className="glass overflow-hidden rounded-xl">
           <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" />
@@ -182,14 +183,9 @@ export default function DashboardPage() {
               ))}
             </ul>
           )}
-        </motion.section>
+        </Reveal>
 
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.16 }}
-          className="glass rounded-xl p-5"
-        >
+        <Reveal delay={0.16} className="glass rounded-xl p-5">
           <h3 className="mb-3 text-sm font-semibold">开始使用</h3>
           <div className="space-y-2">
             <ActionLink
@@ -223,7 +219,7 @@ export default function DashboardPage() {
               desc="含血缘与隐私处理记录"
             />
           </div>
-        </motion.section>
+        </Reveal>
       </div>
     </div>
   )
@@ -239,20 +235,22 @@ function StatCard({
   index: number
   icon: typeof Database
   label: string
-  value: string
+  value: ReactNode
   hint: string
 }) {
   return (
     <div
-      className="glass glass-hover animate-rise rounded-xl p-4"
+      className="glass glass-hover animate-rise rounded-xl"
       style={{ ['--stagger' as string]: `${index * 60}ms` }}
     >
-      <div className="mb-2 flex items-center justify-between">
-        <span className="section-title">{label}</span>
-        <Icon className="h-4 w-4 text-primary/70" />
-      </div>
-      <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
-      <div className="mt-1 truncate text-[0.7rem] text-muted-foreground">{hint}</div>
+      <Tilt className="p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="section-title">{label}</span>
+          <Icon className="h-4 w-4 text-primary/70" />
+        </div>
+        <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
+        <div className="mt-1 truncate text-[0.7rem] text-muted-foreground">{hint}</div>
+      </Tilt>
     </div>
   )
 }

@@ -1,0 +1,12 @@
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    brand visible  --  WebInsight
+  OK    stat cards rendered (>=4)  --  found 4
+  OK    countup shows number  --  数据表 | 19 | 其中 0 张为采集数据集
+  OK    transition has in-between frames  --  samples=['1', '0.500352', '0.286616', '0', '0.25953', '0.72312', '0.985072', '0.999999']
+  OK    discover page rendered  --  http://127.0.0.1:5174/discover
+  OK    route back to dashboard  --  http://127.0.0.1:5174/
+  OK    reduced-motion renders + final values  --  数据表 | 19 | 其中 0 张为采集数据集
+  OK    no console errors (normal mode)  --  0: []
+  OK    no console errors (reduced-motion)  --  0: []
+RESULT: all checks passed

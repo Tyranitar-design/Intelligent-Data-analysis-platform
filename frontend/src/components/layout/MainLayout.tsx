@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { AnimatePresence, motion } from 'motion/react'
+import { NavLink, useLocation, useOutlet } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   Activity,
   ChevronLeft,
@@ -67,6 +67,8 @@ const COLLAPSE_KEY = 'webinsight.sidebar.collapsed'
 
 export default function MainLayout() {
   const location = useLocation()
+  const outlet = useOutlet()
+  const reduceMotion = useReducedMotion()
   const { theme, setTheme } = useThemeStore()
   const capabilities = useAppStore((s) => s.capabilities)
   const capabilitiesError = useAppStore((s) => s.capabilitiesError)
@@ -225,7 +227,19 @@ export default function MainLayout() {
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-4 sm:px-5 sm:py-5">
-          <Outlet />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+              transition={
+                reduceMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }
+              }
+            >
+              {outlet}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 

@@ -39,5 +39,20 @@ export const CHART_THEME = {
   backgroundColor: 'transparent',
 }
 
+/**
+ * 统一动效参数（L1 · 动效基础设施）
+ * =================================
+ *
+ * 图表入场节奏：800ms cubicOut，更新 450ms。放位规则：
+ * `{ ...CHART_THEME, ...CHART_MOTION, ...后端 option }` ——
+ * 后端显式指定的 animation 字段优先（它才是可视化配置的生产者）。
+ */
+export const CHART_MOTION = {
+  animationDuration: 800,
+  animationEasing: 'cubicOut',
+  animationDurationUpdate: 450,
+  animationEasingUpdate: 'cubicInOut',
+} as const
+
 export default echarts
 export type { EChartsOption } from 'echarts'

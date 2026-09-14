@@ -12,7 +12,7 @@ import { motion } from 'motion/react'
 import { Activity, Loader2, Play } from 'lucide-react'
 
 import apiClient from '@/api/client'
-import echarts, { CHART_THEME, type EChartsOption } from '@/lib/echarts'
+import echarts, { CHART_MOTION, CHART_THEME, type EChartsOption } from '@/lib/echarts'
 import { Button } from '@/components/ui/button'
 import { SkeletonChart } from '@/components/visual/Skeleton'
 import { cn } from '@/lib/utils'
@@ -246,6 +246,7 @@ function EChart({
     chartRef.current.setOption(
       {
         ...CHART_THEME,
+        ...CHART_MOTION,
         grid: { left: 44, right: 18, top: 28, bottom: 32 },
         ...option,
       } as EChartsOption,

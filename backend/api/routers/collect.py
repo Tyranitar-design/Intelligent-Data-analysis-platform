@@ -305,6 +305,49 @@ def list_capabilities() -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# 重入恢复
+# --------------------------------------------------------------------------- #
+
+
+@router.post("/jobs/{job_id}/resume", summary="重试失败分片（断点续传）")
+async def resume_job(job_id: int, db: Session = Depends(get_db)) -> dict:
+    """重入恢复：重置失败 / 中断分片后重新执行（游标保留）。
+
+    合规门（与调度路径同源）：``blocked`` / ``confirm_required`` 的计划不允许
+    重试，需先处理合规状态。
+    """
+    job = db.get(CollectJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="采集任务不存在")
+
+    if job.status not in ("failed", "partial", "running"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"仅失败 / 部分成功 / 中断的任务可重入恢复（当前状态: {job.status}）",
+        )
+
+    # 合规门（与 /run 和调度路径同源）
+    plan = db.get(CollectPlan, job.plan_id)
+    if plan is not None:
+        block_reason = compliance_block_reason(load_plan_verdict(db, plan))
+        if block_reason:
+            raise HTTPException(status_code=403, detail=block_reason)
+
+    scheduler = CollectScheduler(db)
+    try:
+        job = await scheduler.resume_job(job_id)
+    except Exception as exc:  # noqa: BLE001 - 与 /run 一致：失败回传状态
+        logger.exception("重入恢复失败 job=%s", job_id)
+        db.refresh(job)
+        job.status = "failed"
+        job.error_dist = {**(job.error_dist or {}), "resume_error": 1}
+        db.commit()
+        return {"job": job.to_dict(), "error": str(exc)[:300]}
+
+    return {"job": job.to_dict()}
+
+
+# --------------------------------------------------------------------------- #
 # 物化
 # --------------------------------------------------------------------------- #
 

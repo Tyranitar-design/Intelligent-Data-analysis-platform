@@ -1500,3 +1500,41 @@ RESULT: all checks passed
 
 - 后处理链（bloom）未启用——按预算与低端设备表现，暂不加；
 - 场景作为"展示岛"独立存在，不与工作区共享状态。
+
+---
+
+## 阶段 E3 · 断点续传重入恢复
+
+状态：**已完成 ✔**
+开始：2026-09-14
+完成：2026-09-14
+依据：`UPGRADE-PLAN-v4.md` §3.1（E3 断点续传重入恢复）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 重入恢复 | `collect/scheduler.py::resume_job` | 重置 failed / running / skipped 分片为 pending（**cursor 保留**）后重新执行 |
+| 端点 | `POST /collect/jobs/{id}/resume` | 仅 failed / partial / running 可恢复；合规门同源（blocked / confirm_required → 403） |
+| 前端 | `JobDetail.tsx` | 失败 / 部分成功 / 中断状态下出现「重试失败分片」按钮 |
+| 测试 | `tests/integration/test_job_resume.py` | 5 个（重置重跑 / 中断恢复 / succeeded 拒绝 / 404 / 合规门） |
+| 验证 | `scripts/verify_resume_e3.py` | 9 项断言 + 中断现场与恢复后双截图 |
+
+### 验收（实机门禁 9/9，证据 `docs/evidence/e3-resume/`）
+
+```
+OK  succeeded job resume rejected (400)
+OK  interruption staged (job=partial, task=failed)     <- SQLite 模拟中断现场
+OK  resume button visible on partial job
+OK  resume E2E completes with message                  <- 真实重新执行
+OK  job left partial after resume  --  job partial -> succeeded
+OK  task no longer failed  --  task failed -> done
+RESULT: all checks passed
+```
+
+恢复痕迹：分片「尝试 2 次」徽章 + 去重统计 updated 计数——重入行为可观测。
+
+### 遗留
+
+- 分页遍历（多分片）尚未进入实际使用场景——当前任务单分片，重入路径已就绪；
+- 进程被杀后的强一致恢复（WAL 级）超出本机单用户的必要范围。

@@ -216,6 +216,41 @@ class CollectScheduler:
             if owns_client:
                 await client.aclose()
 
+    async def resume_job(
+        self,
+        job_id: int,
+        *,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> CollectJob:
+        """重入恢复：把失败 / 中断的分片重置为 ``pending`` 后重新执行。
+
+        适用场景：上一次执行 ``failed`` 的分片、进程中断后残留的 ``running``
+        分片（模拟中断现场后恢复）。**游标（cursor）保留**——分片内已有的
+        进度不丢失，这正是断点续传的语义。
+        """
+        job = self.session.get(CollectJob, job_id)
+        if job is None:
+            raise ValueError(f"采集任务不存在: {job_id}")
+
+        retryable = (
+            self.session.execute(
+                select(CollectTask).where(
+                    CollectTask.job_id == job_id,
+                    CollectTask.status.in_(("failed", "running", "skipped")),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for task in retryable:
+            task.status = "pending"
+            # last_error 已在 job.error_dist 留痕；重置以便干净重试
+            task.last_error = None
+        self.session.commit()
+        logger.info("重入恢复 job=%s 重置分片=%d", job_id, len(retryable))
+
+        return await self.run_job(job_id, client=client)
+
     # ------------------------------------------------------------------ #
 
     async def _execute_task(

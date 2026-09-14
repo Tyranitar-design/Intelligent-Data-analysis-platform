@@ -1,0 +1,10 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    succeeded job available  --  job=3
+  OK    succeeded job resume rejected (400)  --  
+  OK    interruption staged (job=partial, task=failed)  --  job=partial task=failed
+  OK    resume button visible on partial job  --  
+  OK    resume E2E completes with message  --  
+  OK    job left partial after resume  --  job partial -> succeeded
+  OK    task no longer failed  --  task failed -> done
+RESULT: all checks passed

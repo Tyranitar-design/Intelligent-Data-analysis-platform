@@ -16,6 +16,7 @@ import {
   Loader2,
   PackageCheck,
   RefreshCw,
+  RotateCcw,
 } from 'lucide-react'
 
 import apiClient from '@/api/client'
@@ -168,6 +169,7 @@ export default function JobDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [materializing, setMaterializing] = useState(false)
+  const [resuming, setResuming] = useState(false)
 
   const load = useCallback(async () => {
     if (!jobId) return
@@ -228,6 +230,31 @@ export default function JobDetailPage() {
     }
   }
 
+  async function resumeJob() {
+    if (!jobId) return
+    setResuming(true)
+    setMessage(null)
+    try {
+      const { data } = await apiClient.post<{ job: JobDetail; error?: string }>(
+        `/collect/jobs/${jobId}/resume`,
+        undefined,
+        { timeout: 180000 },
+      )
+      setMessage(
+        data.error
+          ? `重试完成但仍有错误：${data.error}`
+          : `重试完成——当前状态：${STATUS_LABEL[data.job.status] ?? data.job.status}`,
+      )
+      void load()
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response
+        ?.data?.detail
+      setMessage(typeof detail === 'string' ? detail : '重试失败')
+    } finally {
+      setResuming(false)
+    }
+  }
+
   if (loading && !job) {
     return (
       <div className="mx-auto max-w-6xl">
@@ -273,6 +300,23 @@ export default function JobDetailPage() {
           <span className="text-xs text-muted-foreground">计划 #{job.plan_id}</span>
         </div>
         <div className="flex gap-2">
+          {(job.status === 'failed' ||
+            job.status === 'partial' ||
+            job.status === 'running') && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void resumeJob()}
+              disabled={resuming}
+            >
+              {resuming ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              重试失败分片
+            </Button>
+          )}
           {job.status === 'succeeded' || job.status === 'partial' ? (
             <Button size="sm" onClick={() => void materialize()} disabled={materializing}>
               {materializing ? (

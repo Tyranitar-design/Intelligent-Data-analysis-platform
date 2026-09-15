@@ -1,0 +1,7 @@
+  [OK  ] AST 函数发现（sign/_0xa1/buildQuery） -- funcs=['_0xa1', 'buildQuery', 'sign']
+  [OK  ] 逆向链自动签名 → 200 -- status=200 sign=90bddf6a err=
+  [OK  ] 复现值 == 服务端参照实现 -- 
+  [OK  ] 响应数据完整（items） -- body={'ok': True, 'uid': 'lab-user', 'items': [1, 2, 3]}
+  [OK  ] 对照组：错签 → 403 -- status=403
+  [OK  ] 对照组：过期时间戳 → 403（防重放） -- status=403
+RESULT: all checks passed

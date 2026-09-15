@@ -147,19 +147,64 @@ class JSReverseEngine:
         return "..."
 
     def extract_function_code(self, js_code: str, func_name: str) -> Optional[str]:
-        """提取函数代码"""
-        # 使用正则提取函数
-        patterns = [
-            rf"function\s+{re.escape(func_name)}\s*\([^)]*\)\s*\{{[\s\S]*?\}}",
-            rf"{re.escape(func_name)}\s*=\s*function\s*\([^)]*\)\s*\{{[\s\S]*?\}}",
-            rf"{re.escape(func_name)}\s*:\s*function\s*\([^)]*\)\s*\{{[\s\S]*?\}}",
-        ]
+        """提取完整函数代码（括号平衡扫描，支持嵌套块/字符串/注释）。
 
+        兼容三种声明形式：``function name(...)`` / ``name = function(...)`` /
+        ``name: function(...)``。旧版非贪婪正则会截断含嵌套块的函数（缺 return
+        与闭合括号），此实现修正该缺陷。
+        """
+        patterns = [
+            rf"function\s+{re.escape(func_name)}\s*\([^)]*\)\s*\{{",
+            rf"{re.escape(func_name)}\s*=\s*function\s*\([^)]*\)\s*\{{",
+            rf"{re.escape(func_name)}\s*:\s*function\s*\([^)]*\)\s*\{{",
+        ]
         for pattern in patterns:
             match = re.search(pattern, js_code)
-            if match:
-                return match.group(0)
+            if not match:
+                continue
+            open_pos = js_code.find("{", match.start())
+            if open_pos == -1:
+                continue
+            end_pos = self._find_matching_brace(js_code, open_pos)
+            if end_pos is not None:
+                return js_code[match.start() : end_pos + 1]
+        return None
 
+    @staticmethod
+    def _find_matching_brace(text: str, open_pos: int) -> Optional[int]:
+        """从 ``open_pos`` 处的 ``{`` 出发做括号平衡扫描（跳过字符串/模板/注释）。"""
+        depth = 0
+        i = open_pos
+        n = len(text)
+        while i < n:
+            ch = text[i]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return i
+            elif ch in ("'", '"', "`"):
+                quote = ch
+                i += 1
+                while i < n:
+                    if text[i] == "\\":
+                        i += 2
+                        continue
+                    if text[i] == quote:
+                        break
+                    i += 1
+            elif ch == "/" and i + 1 < n and text[i + 1] == "/":
+                next_line = text.find("\n", i)
+                if next_line == -1:
+                    return None
+                i = next_line
+            elif ch == "/" and i + 1 < n and text[i + 1] == "*":
+                close = text.find("*/", i + 2)
+                if close == -1:
+                    return None
+                i = close + 1
+            i += 1
         return None
 
     def execute_js(self, js_code: str, func_name: str = None, args: List = None) -> Any:

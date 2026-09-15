@@ -47,3 +47,6 @@ backend/admin.bak/
 
 # 鏁版嵁搴撹縼绉诲浠斤細鏈湴淇濈暀鐢ㄤ簬鍥炴粴锛屼笉鍏ョ増鏈簱
 *.db.bak-*
+
+# demo.ps1 运行状态（本地文件）
+scripts/.demo-state.json

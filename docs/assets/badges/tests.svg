@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="20" role="img" aria-label="tests: 178 passed">
+  <title>tests: 178 passed</title>
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="r">
+    <rect width="128" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#r)">
+    <rect width="46" height="20" fill="#555"/>
+    <rect x="46" width="82" height="20" fill="#4c1"/>
+    <rect width="128" height="20" fill="url(#s)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="110">
+    <text aria-hidden="true" x="240" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="360">tests</text>
+    <text x="240" y="140" transform="scale(.1)" textLength="360">tests</text>
+    <text aria-hidden="true" x="860" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="720">178 passed</text>
+    <text x="860" y="140" transform="scale(.1)" textLength="720">178 passed</text>
+  </g>
+</svg>

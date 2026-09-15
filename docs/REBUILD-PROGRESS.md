@@ -1705,3 +1705,40 @@ RESULT: all checks passed     （全量 pytest：172 passed）
 ### 遗留
 
 - P9 剩余：D4 检索深化（多关键字 / 全文索引 / 时间过滤）。
+
+## 阶段 D4 · 检索深化（多关键字 / 时间过滤）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`f7bca89`
+目标：P9 最后一项 —— 数据集检索从"单关键字整串 LIKE"升级为可用检索。
+
+### 交付
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| 多关键字 AND | `pipeline/storage.py` `search_dataset` | `q` 空格分词（最多 6 词），词间 AND、词内字段 OR；单词行为向后兼容 |
+| 时间范围过滤 | 同上 | `date_field` + `date_from` / `date_to`（YYYY-MM-DD，**含当天**）；`date()` 截断比较，兼容带时间部分的值；非法字段 / 缺配合 → 400 |
+| 端点参数 | `collect.py` `/datasets/{id}/search` | `date_field` / `date_from` / `date_to` 透传；`query` 回显扩展 |
+| 检索栏 UI | `DatasetDetail.tsx` | 多词提示（空格分词，多词 AND）；「时间过滤」toggle 展开行（日期字段 + 起止日期 + 含当天说明） |
+| 测试 | `test_dataset_search_diff.py` | +6 用例（多词 AND / 限域多词 / 日期范围 / 时间戳截断 / 组合 / 参数校验） |
+| 门禁 | `verify_d4_search_plus.py` | 实机 10/10 + 证据 `docs/evidence/d4-search/` |
+
+### 验收（实机门禁 10/10 + 全量 178 passed）
+
+```
+OK  single keyword backward-compatible  --  total=1
+OK  multi keyword AND (reversed order hits)  --  total=1（旧整串实现为 0）
+OK  multi keyword requires all words  --  total=0
+OK  date filter participates (non-date values excluded)  --  total=0（过滤前 1）
+OK  date_from without date_field -> 400 / invalid date_field -> 400
+OK  frontend multi-keyword search / frontend date filter applied
+RESULT: all checks passed     （全量 pytest：178 passed）
+```
+
+### 说明
+
+- 未做 SQLite FTS5 全文索引：物化表为动态 schema、索引需随物化同步维护，收益与复杂度不匹配；
+  当前多词 AND + LIMIT 分页已覆盖 `/datasets/:id` 的数据集级检索场景（D4 明确不含跨数据集全局搜索）。
+- 相关度排序（命中词数）未做——保持 `ORDER BY id` 的稳定分页语义，留待有真实排序诉求时再加。
+
+P9 至此全部收官（P9a 检索对比 / P9b 审计点+版本+保留 / D4 检索深化）。

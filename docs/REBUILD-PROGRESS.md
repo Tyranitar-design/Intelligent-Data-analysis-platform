@@ -1809,3 +1809,55 @@ F5 星云 / F6 `/showcase`（L3 阶段完成）+ **F7 演示资产（本阶段�
 | 7 | 管道动画真实数据 | UI-v4 Collect（数据真实性纪律） |
 | 8 | 移动端 375px 不溢出 | `verify_mobile_375.py` 13/13 |
 | 9 | 依赖预算准入 | `docs/DEPENDENCY-BUDGET.md` + perf 门禁 |
+
+## 阶段 Collect-Forge · 采集能力攻坚（验证码链 + 阶梯验证 + CF 突破）
+
+状态：**进行中**（V1/V2/V2b 完成；V3/V4 路线图）
+完成：2026-09-15 | 提交：`057be0c`（验证码链）· `c4416f2`（阶梯 + Scrapling 修复）
+规格：`docs/COLLECT-CAPABILITY-MATRIX.md`（L0-L6 阶梯 + V1-V4 验证码链）
+
+### 背景
+
+部署前采集能力全阶验证。用户目标：**全自动化采集**（自动处理验证码 / 人机验证 / 登录态 / 加密签名）。
+D5 决策修订：人机协同取代自动破解 → **自动化优先（本地识别 + 平台兜底），人机协同最后防线**。
+
+### 交付
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| V1 图片验证码 | `crawlers/anticrawl/captcha_solver.py` | **ddddocr 本地 OCR**（离线免费）→ 2captcha 兜底；4 测试全过 |
+| V2 滑块检测 | 同上（`_detect_gap`） | 暗区阈值主路径 + Canny 边缘兜底；3 测试（120/180/210 精确） |
+| V2b 拖拽闭环 | `crawlers/anticrawl/slider_drag.py` | 拟人轨迹（加速-减速 + 抖动 + 过冲回退）+ Playwright 拖拽；e2e 测试通过 |
+| V3 平台协议 | `captcha_solver._solve_via_2captcha` | 2captcha HTTP 协议（`CAPTCHA_API_KEY`，无 key 优雅降级） |
+| Scrapling 策略修复 | `strategies/scrapling_strategy.py` | **旧 API（Autodriver/Phantom）重写为 0.4.7（Fetcher/StealthyFetcher）**；挑战自动升级链 |
+| 阶梯脚本 | `scripts/verify_collect_ladder.py` | L0-L6 分层实机验证（`-Layer` 分层跑） |
+| 测试 | +14 用例（全量 192 passed） | captcha 7 + slider 7 |
+
+### 实测战果（阶梯全过）
+
+```
+L0 静态直采    OK 2/2   scrapling 2.3s（修复后直采提速 4x）
+L1 指纹伪装    OK 3/3   UA 伪装成功；TLS ja3≠httpx ja3（可对抗 JA3 检测）
+L2 JS 渲染     OK       quality=0.9375
+L3 CF 挑战     OK 8.5s  Fetcher→挑战检测→StealthyFetcher 升级链
+                        （对照：修复前 playwright 60s 超时 FAIL）
+L4 分页        OK 30/30（17.7s→4.4s）
+L6 逆向协同    OK 4/4   签名复现（AST→提取→execjs 求值）
+V1 图片验证码  OK 4/4   ddddocr 本地识别
+V2 滑块检测    OK 3/3   缺口精确
+V2b 拖拽闭环   OK       e2e 净位移受控（本地合成页）
+```
+
+### 关键发现
+
+1. **ScraplingStrategy 失效**：旧 API（`Autodriver/Phantom`）在 scrapling 0.4.7 不存在 → 策略静默失败、全部靠 playwright 兜底（慢）。修复后：直采 4-9× 提速 + CF 挑战能力激活。
+2. **Scrapling 的 TLS 指纹与裸 httpx 不同**（ja3 可变化）——TLS 层反检测可用。
+3. StealthyFetcher + patchright 浏览器**已就绪**（无需 camoufox）。
+4. 滑块检测：暗区阈值法比 Canny 更精确（4px 偏差 → 0）。
+
+### 路线图（剩余）
+
+- **V3 打码平台实测**（需 `CAPTCHA_API_KEY`——2captcha/anticaptcha 任一）
+- **V4 行为验证码**：reCAPTCHA/hCaptcha/极验 token 注入（打码平台 + 浏览器注入）
+- **登录态自动化闭环**：auth 模块自动登录 + Cookie 复用回归
+- **加密实战**：jsreverse 对真实站点签名还原（当前 fixture 级已验证引擎链）

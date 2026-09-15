@@ -335,13 +335,13 @@ class CaptchaSolver:
     # ------------------------------------------------------------------ #
     # 页面集成（Playwright）
     # ------------------------------------------------------------------ #
-    def get_captcha_image(self, page, selector: str = "img") -> Optional[bytes]:
-        """从页面获取验证码图片（元素截图）。"""
+    async def get_captcha_image(self, page, selector: str = "img") -> Optional[bytes]:
+        """从页面获取验证码图片（元素截图，async Playwright API）。"""
         try:
-            img = page.query_selector(selector)
+            img = await page.query_selector(selector)
             if not img:
                 return None
-            return img.screenshot()
+            return await img.screenshot()
         except Exception as exc:  # noqa: BLE001
             logger.error("获取验证码图片失败: %s", exc)
             return None
@@ -350,7 +350,7 @@ class CaptchaSolver:
         self, page, captcha_type: str = "image", selector: str = "img"
     ) -> Dict[str, Any]:
         """在页面上识别验证码（图片 / 滑块 / 点击三条路径）。"""
-        image_data = self.get_captcha_image(page, selector)
+        image_data = await self.get_captcha_image(page, selector)
         if not image_data:
             return {"success": False, "error": "无法获取验证码图片"}
 

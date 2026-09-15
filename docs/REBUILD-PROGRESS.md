@@ -1904,3 +1904,36 @@ V2b 拖拽闭环   OK       e2e 净位移受控（本地合成页）
 
 - CapSolver 对主流"测试/自动化"域名有保护性黑名单（accounts.hcaptcha.com、nopecha.com）——真实目标域名正常处理；
 - 靶场类限制不构成能力缺口（reCAPTCHA 全链已证；三类任务 + 注入器全部就绪）。
+
+## 阶段 Collect-Forge-3 · 登录态 + 加密实战 + 验证码主流程接入（1→2→3）
+
+状态：**三项完成**
+完成：2026-09-15 | 提交：`534d38a`（auth）· `1c90b7d`（jsrev）· `492ca50`（handler）
+
+### ① 登录态自动化闭环（`534d38a`）
+
+- `crawlers/auth/form_detector.py`：**表单自动探测**（password 锚点 + username DOM 近邻 + submit 三形态），选择器支持 id / name / 类型回退
+- `auth_manager` 增强：选择器缺省时自动探测；**登录失败检测**（可见错误提示 → 拒绝保存脏 Cookie——修复"失败也存 Cookie"缺陷）
+- **真实站闭环测试**：quotes.toscrape.com 自动登录（探测路径）→ Cookie 保存 → **复用回归**（带 Cookie 访问主页出现 Logout）
+- 测试 +4 → 207
+
+### ② 加密实战 · 签名实验室（`1c90b7d`）
+
+- `crawlers/jsreverse/jsrev_lab.py`：**签名仿真站**（FNV-1a 哈希 + 混淆 key 变量 + **ts 窗口防重放**）+
+  **逆向客户端**（fetch_js → AST 函数发现 → 依赖链提取（函数 + 全局变量）→ execjs 复现 → 带签请求 200）
+- **修复真实缺陷**：`extract_function_code` 非贪婪正则**截断嵌套块函数**（缺 return/闭合 → execjs 编译失败）
+  → **括号平衡扫描**（跳过字符串/模板/注释；兼容三种声明形式）
+- 门禁 6/6（签名 200 / 复现==参照 / 错签 403 / 过期 ts 403）；测试 +2 → 209
+
+### ③ 验证码自动处理接入采集主流程（`492ca50`）
+
+- `crawlers/anticrawl/captcha_handler.py`：**detect_page_captcha**（reCAPTCHA/hCaptcha/Turnstile/图片 四类探测）
+  + **handle_captcha**（token 型：出票→注入；图片型：识别→填写；可选提交）
+- **修复真实缺陷**：`get_captcha_image` 旧式 sync 写法在 async Playwright 下失效（coroutine 无 screenshot）
+  → async 化（3 处调用点同步）
+- 合成"验证码墙"测试 3/3（出票 mock，零额度消耗）→ **212 passed**
+
+### 本轮合计
+
+- 测试 **+9**（203 → 212）；**两处真实缺陷修复**（嵌套块提取截断 / async 截图失效）
+- 覆盖链：登录态（表单探测→复用）· 加密（提取→复现→防重放）· 验证码（探测→处理→解锁）

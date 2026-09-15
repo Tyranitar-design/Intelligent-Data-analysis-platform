@@ -145,6 +145,11 @@ class HttpxStrategy(BaseStrategy):
         curl_cffi 的 ``impersonate="chrome"`` 复刻真实浏览器 TLS/HTTP2 指纹。
         返回 ``(status_code, content_type, text, json_payload_or_None, transport)``。
         """
+        from crawlers.anticrawl.proxy_pool import get_global_pool  # noqa: PLC0415
+
+        pool = get_global_pool()
+        proxy = pool.next()
+
         try:
             from curl_cffi.requests import AsyncSession  # noqa: PLC0415
 
@@ -156,6 +161,7 @@ class HttpxStrategy(BaseStrategy):
                     impersonate="chrome",
                     timeout=self.timeout,
                     allow_redirects=self.follow_redirects,
+                    **({"proxies": {"all": proxy}} if proxy else {}),
                 )
             text = response.text
             content_type = response.headers.get("content-type", "")
@@ -165,16 +171,22 @@ class HttpxStrategy(BaseStrategy):
                     payload = response.json()
                 except Exception:  # noqa: BLE001
                     payload = None
+            pool.record_success(proxy)
             return response.status_code, content_type, text, payload, "curl_cffi:chrome"
         except ImportError:
             pass  # curl_cffi 未安装——走 httpx
         except Exception:  # noqa: BLE001 - curl_cffi 网络异常降级 httpx 重试一次
-            pass
+            pool.record_failure(proxy)
 
         client = await self._get_client()
         response = await client.get(
-            url, headers=headers, cookies=cookies, timeout=self.timeout
+            url,
+            headers=headers,
+            cookies=cookies,
+            timeout=self.timeout,
+            **({"proxy": proxy} if proxy else {}),
         )
+        pool.record_success(proxy)
         text = response.text
         content_type = response.headers.get("content-type", "")
         payload = None

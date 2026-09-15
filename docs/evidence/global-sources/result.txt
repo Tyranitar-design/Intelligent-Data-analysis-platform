@@ -1,0 +1,12 @@
+  [OK  ] T1 GitHub API（搜索仓库） -- status=200 items=3 first=ScrapeGraphAI/Scrapegraph-ai
+  [OK  ] T1 HN Algolia（实时故事） -- hits=3
+  [OK  ] T1 Reddit（渠道观察） -- matrix=httpx:403,curl_cffi:chrome:403,scrapling-fetcher:403 → 结论：匿名渠道受限，正确路径为 Reddit 官方 OAuth API（非绕过目标）
+  [OK  ] T1 Open Library（公开图书 API） -- docs=3 first=Learning Python
+  [OK  ] T2 books 详情页（两级链路） -- strategy=scrapling quality=0.9375
+  [OK  ] T2 ScrapingClub（观察：不可达） -- matrix=httpx:403,curl_cffi:chrome:404,scrapling-fetcher:404 → 站点 403/404（路径变更或反爬，不确定）
+  [OK  ] T2 scrapingcourse 电商靶场 -- strategy=scrapling quality=0.9375
+  [OK  ] T3 CF·blog.cloudflare.com -- strategy=scrapling quality=0.8374999999999999 err=
+  [OK  ] T3 CF·scrapingcourse -- strategy=scrapling quality=0.9375 err=
+  [OK  ] T3 Akamai·steamcommunity -- strategy=scrapling quality=0.9375 err=
+  [OK  ] T3 CF·nowsecure.nl（挑战靶） -- strategy=scrapling quality=0.8374999999999999 err=
+RESULT: all checks passed

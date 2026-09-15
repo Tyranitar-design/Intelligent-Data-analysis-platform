@@ -1,0 +1,42 @@
+{
+  "reddit": [
+    {
+      "engine": "httpx",
+      "status": 403,
+      "ok": false,
+      "len": 189908
+    },
+    {
+      "engine": "curl_cffi:chrome",
+      "status": 403,
+      "ok": false,
+      "len": 189908
+    },
+    {
+      "engine": "scrapling-fetcher",
+      "status": 403,
+      "ok": false,
+      "len": 189933
+    }
+  ],
+  "scrapingclub": [
+    {
+      "engine": "httpx",
+      "status": 403,
+      "ok": false,
+      "len": 548
+    },
+    {
+      "engine": "curl_cffi:chrome",
+      "status": 404,
+      "ok": false,
+      "len": 1643
+    },
+    {
+      "engine": "scrapling-fetcher",
+      "status": 404,
+      "ok": false,
+      "len": 1566
+    }
+  ]
+}

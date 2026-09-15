@@ -185,7 +185,7 @@ export default function DatasetsPage() {
           ) : preview && preview.rows.length > 0 ? (
             <div className="max-h-[440px] overflow-auto">
               <table className="w-full min-w-[640px] text-left text-xs">
-                <thead className="sticky top-0 bg-card/95 backdrop-blur">
+                <thead className="sticky top-0 bg-card">
                   <tr className="text-muted-foreground">
                     {preview.columns.map((col) => (
                       <th key={col} className="whitespace-nowrap px-4 py-2 font-medium">

@@ -37,30 +37,44 @@
     --border: 214 24% 88%;
     --input: 214 24% 88%;
     --ring: 189 94% 36%;
+    --violet: 258 62% 54%;
     --radius: 0.75rem;
   }
 
   .dark {
-    /* 深色主题（默认）：深空底色，三层明度递进 */
-    --background: 222 26% 7%;
-    --foreground: 210 24% 94%;
-    --card: 222 24% 10%;
-    --card-foreground: 210 24% 94%;
-    --popover: 222 24% 11%;
-    --popover-foreground: 210 24% 94%;
-    --primary: 186 92% 50%;
-    --primary-foreground: 222 40% 8%;
-    --secondary: 222 20% 16%;
-    --secondary-foreground: 210 24% 92%;
-    --muted: 222 20% 15%;
-    --muted-foreground: 215 16% 60%;
-    --accent: 38 92% 58%;
-    --accent-foreground: 222 40% 8%;
-    --destructive: 0 74% 56%;
+    /* 深色主题（默认）：精密工程控制台
+       v3 视觉转向（2026-09-15）：参考图评审共识——v2 的极光/发光/玻璃属于
+       「装饰过载」，让界面显得廉价并拖垮可读性。v3 改用工程语言：
+       表面明度递进分层（不发光的边框）+ 单一冰青强调色 + 等宽数字。
+       强调色由荧光青(186 94%)收敛为冰青(172 62%)，饱和度下降更耐看。 */
+    --background: 222 34% 4%;
+    --foreground: 210 26% 94%;
+    --card: 222 28% 7%;
+    --card-foreground: 210 26% 94%;
+    --popover: 222 28% 8%;
+    --popover-foreground: 210 26% 94%;
+    --primary: 172 62% 54%;
+    --primary-foreground: 222 45% 6%;
+    --secondary: 222 20% 13%;
+    --secondary-foreground: 210 24% 90%;
+    --muted: 222 20% 12%;
+    /* v3 可读性修正：v2 的 58% 在近黑底上次级文字偏暗（参考图评审两轮都指出
+       "说明行读起来吃力"），v3 提到 70% 以稳定满足 WCAG AA */
+    --muted-foreground: 215 16% 70%;
+    --accent: 38 88% 56%;
+    --accent-foreground: 222 45% 6%;
+    --violet: 258 40% 58%;
+    --destructive: 0 68% 54%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 18% 18%;
-    --input: 220 18% 18%;
-    --ring: 186 92% 50%;
+    --border: 219 22% 14%;
+    --input: 219 22% 14%;
+    --ring: 172 62% 54%;
+
+    /* v3 表面明度阶梯：容器退后、内容上前，替代"边框发光"的分层做法 */
+    --surface-1: 222 30% 6%;
+    --surface-2: 222 26% 8.5%;
+    --surface-3: 222 24% 11%;
+    --hairline: 210 18% 17%;
   }
 }
 
@@ -103,25 +117,22 @@
 }
 
 @layer components {
-  /* ---- 玻璃面板：卡片的主视觉语言 ---- */
+  /* ---- 面板：卡片的主视觉语言（v3 工程化）
+     v2 曾是「渐变玻璃 + backdrop-filter 模糊」，评审判定为装饰过载且会让前景字发虚。
+     v3 改为实心表面 + hairline 描边：容器退后、内容上前，分层靠 --surface 明度差。 */
   .glass {
-    background: linear-gradient(
-      160deg,
-      hsl(var(--card) / 0.92) 0%,
-      hsl(var(--card) / 0.72) 100%
-    );
-    backdrop-filter: blur(12px) saturate(140%);
-    border: 1px solid hsl(var(--border) / 0.9);
+    background: hsl(var(--surface-1));
+    border: 1px solid hsl(var(--hairline) / 0.9);
   }
 
-  /* 悬停时边框透光——比整体位移更克制，适合密集列表 */
+  /* 悬停时边框提亮为中性色（v2 的青色发光描边已取消——
+     "发光"只能属于数据本身，不能属于容器） */
   .glass-hover {
-    transition: border-color 200ms ease, box-shadow 200ms ease;
+    transition: border-color 200ms ease, background-color 200ms ease;
   }
   .glass-hover:hover {
-    border-color: hsl(var(--primary) / 0.45);
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.12),
-      0 8px 28px -12px hsl(var(--primary) / 0.28);
+    border-color: hsl(var(--muted-foreground) / 0.35);
+    background: hsl(var(--surface-2));
   }
 
   /* ---- 网格底纹：给深色页面一层"图纸"质感 ---- */
@@ -134,7 +145,8 @@
     background-size: 48px 48px;
   }
 
-  /* ---- 顶部光晕：为页面头部制造纵深 ---- */
+  /* ---- 顶部纵深：v3 取消彩色光晕，改为极弱的中性明度渐变 ----
+     （v2 曾是 primary 色径向光晕，属"无光源方向的纯装饰 glow"） */
   .aurora {
     position: relative;
     overflow: hidden;
@@ -142,25 +154,29 @@
   .aurora::before {
     content: "";
     position: absolute;
-    inset: -40% 0 auto 0;
-    height: 340px;
-    background: radial-gradient(
-      62% 100% at 50% 0%,
-      hsl(var(--primary) / 0.22) 0%,
-      transparent 72%
+    inset: 0 0 auto 0;
+    height: 200px;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--surface-2) / 0.7) 0%,
+      transparent 100%
     );
     pointer-events: none;
   }
 
-  /* ---- 数据标签：等宽，用于数值 / ID / 计数 ---- */
+  /* ---- 数据标签：等宽 + 表格数字对齐，用于数值 / ID / 计数 ----
+     v3：补 tabular-nums（数字等宽对齐），并把描边收细一档——
+     与"精密仪器读数"的语言一致，避免每个数值都顶着一条醒目边框 */
   .mono-tag {
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
     font-size: 0.78rem;
     letter-spacing: -0.01em;
     padding: 0.1rem 0.4rem;
     border-radius: 0.375rem;
     background: hsl(var(--muted) / 0.75);
-    border: 1px solid hsl(var(--border));
+    border: 1px solid hsl(var(--hairline) / 0.8);
   }
 
   /* ---- 状态徽标 ---- */
@@ -282,6 +298,233 @@
   }
   .no-scrollbar {
     scrollbar-width: none;
+  }
+}
+
+/* ==========================================================================
+   v3 精密工程层（2026-09-15 · 生图参考二次评审驱动）
+   --------------------------------------------------------------------------
+   设计来源：image-studio 生成的 v3 参考图（design/refs/v3-*.png），
+   经三轮独立评审后确立的「精密工程控制台」语言。
+
+   与 v2 的根本差别——从"加装饰"转为"做减法"：
+     v2：极光光团 + 外发光 + 玻璃模糊 + 扫光  → 评审判定为装饰过载、廉价、伤可读性
+     v3：表面明度递进 + 1px hairline + 单一强调色 + 等宽数字 → 工程感来自克制与精度
+
+   三条硬性纪律（保留类名以免组件引用断裂，但视觉语义已重写）：
+     1. 不发光：任何面板都不带外发光/彩色描边，分层只靠 --surface-1/2/3 明度差
+     2. 不模糊：不用 backdrop-filter 玻璃拟态，面板一律实心
+     3. 单色强调：强调色只用于主指标、激活态、焦点环；语义色只做状态点
+   ========================================================================== */
+
+@layer components {
+  /* ---- hero 环境光：从"三层极光"收敛为一条极弱的顶部渐变（无彩色光团） ---- */
+  .hero-aurora {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 280px;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--surface-3) / 0.85) 0%,
+      hsl(var(--surface-1) / 0.4) 55%,
+      transparent 100%
+    );
+  }
+  .hero-aurora-warm {
+    /* v3：暖色光团已移除，保留空规则以兼容既有引用 */
+    display: none;
+  }
+
+  /* ---- 面板（替代 v2 玻璃）：实心表面 + hairline，靠明度分层而非发光 ---- */
+  .glass-strong {
+    background: hsl(var(--surface-2));
+    border: 1px solid hsl(var(--hairline) / 0.9);
+    box-shadow: none;
+  }
+
+  /* ---- rim light：v3 取消顶缘流光，改为一条中性 hairline（无彩色、无渐变） ---- */
+  .rim-light::after {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: hsl(var(--hairline));
+    pointer-events: none;
+  }
+
+  /* ---- 标题：取消金属渐变，回到高对比纯色（可读性优先） ---- */
+  .headline-gradient {
+    color: hsl(var(--foreground));
+    background: none;
+    -webkit-background-clip: initial;
+    background-clip: initial;
+  }
+
+  /* ---- 图标芯片：取消光晕与外圈描边，只留中性底 ---- */
+  .glow-chip {
+    display: grid;
+    place-items: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 0.5rem;
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--surface-3));
+    border: 1px solid hsl(var(--hairline));
+    box-shadow: none;
+  }
+
+  /* ---- 主按钮：取消辉光，只留轻微投影 ---- */
+  .btn-glow {
+    box-shadow: 0 1px 2px 0 hsl(222 60% 2% / 0.4);
+  }
+  .btn-glow:hover {
+    box-shadow: 0 2px 8px -2px hsl(222 60% 2% / 0.5);
+  }
+
+  /* ---- 页面背景光团：v3 关闭（Backdrop 组件改为纯网格） ---- */
+  .aurora-blob {
+    display: none;
+  }
+  .aurora-blob-cyan,
+  .aurora-blob-violet,
+  .aurora-blob-warm {
+    display: none;
+  }
+
+  /* ---- 颗粒纹理：v3 保留但降到更弱，仅用于消除大面积纯色的塑料感 ---- */
+  .noise-layer {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
+  }
+
+  /* ---- v3 新增：精密工程工具类 ---- */
+
+  /* 工程网格：3% 不透明的 1px 细网格，替代摄影/极光背景 */
+  .eng-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--hairline) / 0.38) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--hairline) / 0.38) 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: 0.22;
+  }
+
+  /* 面板：最常用的容器（等价于 shadcn Card 的工程化版本） */
+  .panel {
+    background: hsl(var(--surface-1));
+    border: 1px solid hsl(var(--hairline) / 0.9);
+    border-radius: 0.5rem;
+  }
+  .panel-2 {
+    background: hsl(var(--surface-2));
+    border: 1px solid hsl(var(--hairline) / 0.9);
+    border-radius: 0.5rem;
+  }
+
+  /* 等宽数字：所有指标数字统一用它，保证列对齐与"仪器感" */
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'ss01' 1;
+    font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+    letter-spacing: -0.01em;
+  }
+
+  /* 小号全大写宽字距标签：表格头、字段名、单位 */
+  .label-xs {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* 状态点：语义色只以 6px 小圆点出现，不做装饰 */
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    flex: none;
+  }
+  .dot-ok {
+    background: hsl(158 74% 52%);
+  }
+  .dot-warn {
+    background: hsl(38 92% 58%);
+  }
+  .dot-off {
+    background: hsl(var(--muted-foreground) / 0.45);
+  }
+
+  /* 语义文字色：只用于读数与状态，不做装饰 */
+  .text-ok {
+    color: hsl(158 74% 52%);
+  }
+  .text-warn {
+    color: hsl(38 92% 58%);
+  }
+  .text-err {
+    color: hsl(0 68% 58%);
+  }
+
+  /* 工程状态条：控制台顶部的实时读数行（参考图的 signature 细节） */
+  .status-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1.25rem;
+    font-size: 0.7rem;
+    line-height: 1.25rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* hairline 分隔线 */
+  .hairline-b {
+    border-bottom: 1px solid hsl(var(--hairline) / 0.9);
+  }
+  .hairline-t {
+    border-top: 1px solid hsl(var(--hairline) / 0.9);
+  }
+}
+
+@layer utilities {
+  /* 极光漂移：肉眼只觉得"活着"，察觉不到循环 */
+  @keyframes aurora-drift {
+    0% { transform: translate3d(-2%, 0, 0) scale(1); opacity: 0.92; }
+    50% { transform: translate3d(2%, 1.5%, 0) scale(1.06); opacity: 1; }
+    100% { transform: translate3d(-1%, -1%, 0) scale(1.02); opacity: 0.95; }
+  }
+
+  /* 卡片 hover 的斜向光泽扫过 —— v3 已取消（扫光属装饰噪音，
+     保留类名以免引用断裂，但不再产生任何视觉效果） */
+  @keyframes sheen-sweep {
+    from { transform: translateX(-140%) skewX(-18deg); }
+    to { transform: translateX(260%) skewX(-18deg); }
+  }
+  .sheen {
+    position: relative;
+    overflow: hidden;
+  }
+  .sheen::before {
+    display: none;
+  }
+
+  /* 数值入场：配合 CountUp 的一次性浮现 */
+  @keyframes value-pop {
+    0% { opacity: 0.35; transform: translateY(4px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .animate-value-pop {
+    animation: value-pop 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* 缓慢浮动：hero 装饰元素的生命感 */
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .animate-float-slow {
+    animation: float-slow 6s ease-in-out infinite;
   }
 }
 

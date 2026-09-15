@@ -62,6 +62,8 @@ export default function DashboardPage() {
   const [overview, setOverview] = useState<OverviewPayload | null>(null)
   const [jobs, setJobs] = useState<JobRow[]>([])
   const [loading, setLoading] = useState(true)
+  // 状态条用的真实读取时刻（不造假数据）
+  const [loadedAt, setLoadedAt] = useState('—')
 
   useEffect(() => {
     let alive = true
@@ -73,6 +75,7 @@ export default function DashboardPage() {
       if (!alive) return
       if (overviewResult.status === 'fulfilled') setOverview(overviewResult.value.data)
       if (jobsResult.status === 'fulfilled') setJobs(jobsResult.value.data.items ?? [])
+      setLoadedAt(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
       setLoading(false)
     }
     void load()
@@ -90,26 +93,28 @@ export default function DashboardPage() {
     0,
   )
 
+  // 任务卡的汇总读数（v3）：用真实数据填满卡片留白，避免出现大片空区
+  const jobsSucceeded = jobs.filter((j) => j.status === 'succeeded').length
+  const jobsFailed = jobs.filter((j) => j.status === 'failed').length
+  const jobsItems = jobs.reduce((sum, j) => sum + (Number(j.items_count) || 0), 0)
+
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      {/* ---------------- Hero：平台定位与快捷入口 ---------------- */}
-      <section className="aurora grid-bg overflow-hidden rounded-2xl border border-border/60 px-6 py-7 sm:px-8">
-        <div className="animate-rise relative z-10 flex flex-wrap items-end justify-between gap-5">
+      {/* ---------------- 控制台抬头：页面标识 + 实时状态条 + 快捷操作 ----------------
+          v3 调整：原「营销式 hero」（大标语 + 副标题 + 三个 CTA）与参考图的设计意图冲突——
+          参考图的抬头区只有「面包屑 + 状态读数 + 操作」，首屏主角应当是数据本身。
+          此处把 hero 降级为控制台抬头，并补一条全部由真实接口驱动的状态条。 */}
+      <section className="panel px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-[0.16em] text-primary/85">
-              <Radar className="h-3.5 w-3.5" strokeWidth={2.2} />
-              WebInsight
-            </div>
-            <h2 className="mt-2 text-[1.45rem] font-semibold leading-snug tracking-tight sm:text-[1.65rem]">
-              任意站点，从可采判定到洞察报告
-            </h2>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              四维合规判定 · 定时采集与三级去重 · 数据物化与分析 · 全程审计留痕
+            <h2 className="text-[1.05rem] font-semibold leading-tight text-foreground">平台概览</h2>
+            <p className="mt-1 text-[0.72rem] text-muted-foreground">
+              站点采集 · 数据物化 · 合规审计
             </p>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Link to="/discover">
-              <Button size="sm">
+              <Button size="sm" className="btn-glow">
                 分析一个站点
                 <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
               </Button>
@@ -127,10 +132,42 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* 工程状态条：读数全部来自真实接口（服务能力 + 概览 + 本次读取时刻） */}
+        <div className="status-strip hairline-t mt-3.5 pt-3">
+          <span className="flex items-center gap-1.5">
+            <span className={cn('status-dot', capabilities ? 'dot-ok' : 'dot-off')} />
+            服务
+            <span className="num text-foreground/85">{capabilities ? '在线' : '离线'}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            版本
+            <span className="num text-foreground/85">
+              {capabilities ? `v${capabilities.version}` : '—'}
+            </span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            能力
+            <span className="num text-foreground/85">
+              {capabilities ? `${Object.keys(capabilities.capabilities).length} 项` : '—'}
+            </span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            数据表
+            <span className="num text-foreground/85">{overview?.total_tables ?? 0}</span>
+          </span>
+          <span className="ml-auto flex items-center gap-1.5">
+            读取于
+            <span className="num text-foreground/85">{loadedAt}</span>
+          </span>
+        </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* KPI Bento（v3）：首卡为主指标——跨 2 列 + featured 字号，
+          取代 v2 的四宫格等宽排布，主次一眼可辨 */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
+          featured
           index={0}
           icon={Database}
           label="数据表"
@@ -166,8 +203,10 @@ export default function DashboardPage() {
         />
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-        <Reveal delay={0.1} className="glass overflow-hidden rounded-xl">
+      {/* v3：items-start 让两卡各自随内容收底——避免左卡被强行撑高后
+          在列表与页脚之间留下大片空洞（参考图终审指出的唯一硬伤） */}
+      <div className="grid items-start gap-5 lg:grid-cols-[1.3fr_1fr]">
+        <Reveal delay={0.1} className="glass flex flex-col overflow-hidden rounded-xl">
           <div className="flex items-center justify-between border-b border-border/60 px-5 py-3.5">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" />
@@ -215,13 +254,43 @@ export default function DashboardPage() {
                   <div className="flex shrink-0 items-center gap-4 text-xs">
                     <span className="tabular-nums">{job.items_count} 条</span>
                     <span className="tabular-nums text-muted-foreground">
-                      质量 {Math.round((job.quality_score ?? 0) * 100)}%
+                      质量 {Number(job.items_count) > 0 ? `${Math.round((job.quality_score ?? 0) * 100)}%` : '—'}
                     </span>
                   </div>
                 </li>
               ))}
             </ul>
           )}
+
+          {/* 汇总读数条（v3）：真实聚合数据 + 语义色 + 容器底衬，
+              从"卡内脚注"升级为"控制台读数条" */}
+          <div className="status-strip hairline-t mt-auto bg-muted/25 px-5 py-2.5">
+            <span className="flex items-center gap-1.5">
+              本次显示
+              <span className="num font-medium text-foreground/90">{jobs.length}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              成功
+              <span className="num font-medium text-ok">{jobsSucceeded}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              失败
+              <span
+                className={cn(
+                  'num font-medium',
+                  jobsFailed > 0 ? 'text-err' : 'text-muted-foreground',
+                )}
+              >
+                {jobsFailed}
+              </span>
+            </span>
+            <span className="ml-auto flex items-center gap-1.5">
+              采集记录
+              <span className="num font-medium text-foreground/90">
+                {jobsItems.toLocaleString()}
+              </span>
+            </span>
+          </div>
         </Reveal>
 
         <Reveal delay={0.16} className="glass rounded-xl p-5">
@@ -270,25 +339,45 @@ function StatCard({
   label,
   value,
   hint,
+  featured = false,
 }: {
   index: number
   icon: typeof Database
   label: string
   value: ReactNode
   hint: string
+  /** 主指标卡：更大字号与留白，用于建立 Bento 主次层级（v3） */
+  featured?: boolean
 }) {
   return (
     <div
-      className="glass glass-hover animate-rise rounded-xl"
+      className={cn('panel relative overflow-hidden', featured && 'sm:col-span-2 lg:col-span-2')}
       style={{ ['--stagger' as string]: `${index * 60}ms` }}
     >
-      <Tilt className="p-4">
-        <div className="mb-2 flex items-center justify-between">
+      <Tilt className={featured ? 'p-5' : 'p-4'}>
+        <div className={cn('flex items-center justify-between', featured ? 'mb-3' : 'mb-2.5')}>
           <span className="section-title">{label}</span>
-          <Icon className="h-4 w-4 text-primary/70" />
+          <Icon
+            className={cn('shrink-0 text-muted-foreground', featured ? 'h-4 w-4' : 'h-3.5 w-3.5')}
+            strokeWidth={2}
+          />
         </div>
-        <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
-        <div className="mt-1 truncate text-[0.7rem] text-muted-foreground">{hint}</div>
+        <div
+          className={cn(
+            'num animate-value-pop font-semibold leading-none tracking-tight text-foreground',
+            featured ? 'text-[2.15rem]' : 'text-[1.5rem]',
+          )}
+        >
+          {value}
+        </div>
+        <div
+          className={cn(
+            'mt-2 truncate text-muted-foreground',
+            featured ? 'text-[0.72rem]' : 'text-[0.7rem]',
+          )}
+        >
+          {hint}
+        </div>
       </Tilt>
     </div>
   )

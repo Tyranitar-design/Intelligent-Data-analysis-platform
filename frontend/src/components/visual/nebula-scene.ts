@@ -18,9 +18,9 @@ import * as THREE from 'three'
 
 const PARTICLE_COUNT = 5000
 
-const COLOR_PRIMARY = new THREE.Color('#38d6ea')
-const COLOR_DEEP = new THREE.Color('#1b7fd4')
-const COLOR_ACCENT = new THREE.Color('#f5a524')
+const COLOR_PRIMARY = new THREE.Color('#41d2bf')
+const COLOR_DEEP = new THREE.Color('#2a8f82')
+const COLOR_ACCENT = new THREE.Color('#f1a92c')
 
 const VERTEX_SHADER = /* glsl */ `
   attribute float aSize;

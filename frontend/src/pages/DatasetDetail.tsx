@@ -275,7 +275,7 @@ export default function DatasetDetailPage() {
           ) : (
             <div className="max-h-[380px] overflow-auto">
               <table className="w-full min-w-[520px] text-left text-xs">
-                <thead className="sticky top-0 bg-card/95 backdrop-blur">
+                <thead className="sticky top-0 bg-card">
                   <tr className="text-muted-foreground">
                     <th className="px-5 py-2.5 font-medium">字段</th>
                     <th className="px-3 py-2.5 font-medium">类型</th>
@@ -466,7 +466,7 @@ export default function DatasetDetailPage() {
           ) : (
             <div className="max-h-[520px] overflow-auto">
               <table className="w-full min-w-[720px] text-left text-xs">
-                <thead className="sticky top-0 bg-card/95 backdrop-blur">
+                <thead className="sticky top-0 bg-card">
                   <tr className="text-muted-foreground">
                     <th className="px-4 py-2 font-medium">#</th>
                     {data.columns.map((col) => (

@@ -286,7 +286,7 @@ function ResultTables({ payload }: { payload: AnalysisPayload }) {
           </div>
           <div className="max-h-[380px] overflow-auto">
             <table className="w-full min-w-[520px] text-left text-xs">
-              <thead className="sticky top-0 bg-card/95 backdrop-blur">
+              <thead className="sticky top-0 bg-card">
                 <tr className="text-muted-foreground">
                   <th className="px-4 py-2 font-medium">字段</th>
                   <th className="px-3 py-2 font-medium">均值</th>

@@ -1587,3 +1587,56 @@ OK  drill artifacts cleaned
 
 - O3 两形态协作（本机 ↔ Hermes）未做——依赖云端环境（Lite 形态）；
 - 指标未接入 scrape 端（compose 中 Prometheus/Grafana 尚未联调）。
+
+---
+
+## 阶段 UI-v3 · 精密工程控制台（全页升级 + 生图工作流接入）
+
+状态：**已完成 ✔**
+开始：2026-09-15（前序会话 v3 改造 21:30–22:01）
+完成：2026-09-15
+依据：v3 参考图评审（`design/refs/v3-*.png`）+ image-studio 生图工作流
+
+### 背景与方法
+
+v3 视觉转向由 **image-studio 生图工作流**驱动：`D:/re-bridge` 桥
+（kmage + pai 双上游，OpenAI 兼容 CLI，21 模型）生成 UI 参考图
+（`jobs-v3-draft.json` 两 prompt：workspace / discover），三轮评审后确立
+「精密工程控制台」语言，**照图实现**并全页推广。
+
+### v3 设计语言（diff 注释即规范）
+
+- **从「加装饰」转为「做减法」**：v2 极光光晕 + 外发光 + 玻璃模糊 + 扫光 →
+  判为装饰过载、廉价、伤可读性；v3 = 表面明度递进（`--surface-1/2/3`）+
+  1px hairline + 单一冰青强调（`172 62% 54%`，替换荧光青 `186 94%`）+
+  等宽数字（`.num`）
+- 三条硬性纪律：① 不发光 ② 不模糊（无 backdrop-filter 面板）③ 单色强调
+  （只用于主指标 / 激活态 / 焦点环；语义色只做状态点）
+- 可读性修正：`--muted-foreground` 58% → 70%（WCAG AA）
+
+### 交付
+
+| 件 | 位置 | 说明 |
+|---|---|---|
+| 全局 tokens | `index.css` | v3 层：surface 阶梯 / hairline / `.panel` / `.num` / `.label-xs` / `.status-strip` / `.status-dot` / `.text-ok/warn/err` / `.eng-grid` |
+| 背景层 | `AuroraBackdrop.tsx`（替换 ParticleField） | 纯工程网格 + 噪点 + 中性暗角（无彩色） |
+| 工作台样板 | `Dashboard.tsx` | 控制台抬头 + **真实状态条**（读取于…）+ KPI Bento（主卡 featured）+ 汇总读数条 |
+| 全页清扫 | echarts 色板 v3 化 / Showcase 星点与星云 v3 色 / 6 处 sticky 表头去 blur / 抽屉遮罩去 blur | 消除荧光青与模糊残留（grep 归零） |
+| 生图技能 | `~/.config/opencode/skills/image-studio/` + `~/.claude/skills/image-studio/`（双装） | 由 DSH 版适配：CLI 用法 / 模型成本表 / 提示词模板 / 复刻工作流 / 纪律 |
+| 体检门禁 | `scripts/verify_ui_v3.py` | 16 路由遍历：渲染断言 + 截图 + 控制台零错误 |
+| 证据 | `docs/evidence/ui-v3/`（16 张截图）+ `design/refs/`（14 张参考图） | |
+
+### 验收（实机门禁 18/18）
+
+```
+OK  backend/frontend ready
+OK  / /discover /sites /collect /collect/3 /schedules /datasets /datasets/2
+    /compare /analytics /reports /compliance /audit /monitor /integrations /showcase
+OK  no console errors across tour  --  0
+RESULT: all checks passed
+```
+
+### 遗留
+
+- Showcase 星云（L3 展示岛）按独立预算运行，配色已 v3 化；
+- v2 残留扫描：全代码库 grep 荧光青 0 命中；`ParticleField.tsx` 组件保留（未引用）。

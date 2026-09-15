@@ -32,9 +32,16 @@ echarts.use([
   CanvasRenderer,
 ])
 
-/** 图表的深色基调：与设计系统的主色保持一致 */
+/**
+ * 图表的 v3 工程调色板（与 index.css 的 v3 tokens 一致，2026-09-15）
+ * ================================================================
+ *
+ * 由 HSL tokens 推导：primary 冰青 172 62% 54% / accent 琥珀 38 88% 56% /
+ * ok 158 74% 52% / violet 258 40% 58% / err 0 68% 54%。
+ * v2 的荧光青 #22d3ee 已废弃（与 v3 冰青强调色冲突）。
+ */
 export const CHART_THEME = {
-  color: ['#22d3ee', '#f59e0b', '#34d399', '#a78bfa', '#f87171', '#60a5fa'],
+  color: ['#41d2bf', '#f1a92c', '#2adf6d', '#a569bf', '#d93a3a', '#5b9bd5'],
   textStyle: { fontSize: 11, color: 'rgba(226,232,240,0.75)' },
   backgroundColor: 'transparent',
 }

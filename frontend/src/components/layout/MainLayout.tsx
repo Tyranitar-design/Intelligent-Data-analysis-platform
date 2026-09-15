@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 
 import { Toaster } from '@/components/ui/sonner'
-import ParticleField from '@/components/visual/ParticleField'
+import AuroraBackdrop from '@/components/visual/AuroraBackdrop'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/stores/appStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -133,7 +133,10 @@ export default function MainLayout() {
 
   return (
     <div className="relative flex min-h-screen bg-background text-foreground">
-      <ParticleField />
+      <AuroraBackdrop />
+      {/* v3：ParticleField（cyan 粒子网络）已移除——参考图评审判定彩色粒子属装饰噪音，
+          且其 rgb(34,211,238) 是 v2 的荧光青，与 v3 冰青强调色冲突。
+          组件文件保留在 components/visual/ParticleField.tsx，需要时可直接挂回。 */}
 
       {/* ---------------- 侧边栏（lg 及以上常驻） ---------------- */}
       <aside
@@ -173,7 +176,7 @@ export default function MainLayout() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-background/70 backdrop-blur-sm"
+              className="absolute inset-0 bg-background/80"
               onClick={() => setDrawerOpen(false)}
             />
             <motion.aside

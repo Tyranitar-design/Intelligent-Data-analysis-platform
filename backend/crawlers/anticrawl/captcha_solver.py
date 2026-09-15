@@ -37,16 +37,35 @@ def _get_ddddocr():
 
 
 class CaptchaSolver:
-    """验证码识别器（本地 OCR + OpenCV + 打码平台兜底）"""
+    """验证码识别器（本地 OCR + OpenCV + 打码平台兜底）。
 
-    def __init__(self, api_key: str = None, provider: str = "2captcha"):
+    免费优先链：ddddocr（图片）/ OpenCV（滑块）→ CapSolver → 2captcha。
+    """
+
+    def __init__(
+        self,
+        api_key: str = None,
+        provider: str = "2captcha",
+        capsolver_key: str = None,
+    ):
         """
         Args:
-            api_key: 打码平台 API Key（缺省读 ``CAPTCHA_API_KEY`` 环境变量）
-            provider: 打码平台（2captcha / anticaptcha——当前实现 2captcha 协议）
+            api_key: 2captcha 协议 Key（缺省读 ``CAPTCHA_API_KEY`` 环境变量）
+            provider: 兜底打码平台（2captcha 协议）
+            capsolver_key: CapSolver Key（缺省读 ``CAPSOLVER_API_KEY`` 环境变量）
         """
         self.api_key = api_key or os.environ.get("CAPTCHA_API_KEY")
         self.provider = provider
+        self._capsolver_key = capsolver_key or os.environ.get("CAPSOLVER_API_KEY")
+        self._capsolver = None
+
+    def _get_capsolver(self):
+        """懒加载 CapSolver 客户端（key 缺失时 available=False，调用处降级）。"""
+        if self._capsolver is None:
+            from .capsolver_client import CapSolverClient
+
+            self._capsolver = CapSolverClient(api_key=self._capsolver_key)
+        return self._capsolver
 
     # ------------------------------------------------------------------ #
     # V1 · 图片验证码
@@ -73,6 +92,20 @@ class CaptchaSolver:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("ddddocr 识别失败: %s", exc)
 
+        # 兜底 1：CapSolver（V3；轻任务可能同步返回）
+        capsolver = self._get_capsolver()
+        if capsolver.available:
+            result = await capsolver.solve_image(image_data)
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "solution": result.get("text"),
+                    "source": "capsolver",
+                    "error": None,
+                }
+            logger.warning("CapSolver 图片识别失败: %s", result.get("error"))
+
+        # 兜底 2：2captcha 协议
         if self.api_key:
             return await self._solve_via_2captcha(image_data)
 
@@ -80,7 +113,7 @@ class CaptchaSolver:
             "success": False,
             "solution": None,
             "source": "none",
-            "error": "ddddocr 不可用且未配置 CAPTCHA_API_KEY",
+            "error": "ddddocr 不可用且未配置打码平台 Key",
         }
 
     # ------------------------------------------------------------------ #
@@ -266,6 +299,37 @@ class CaptchaSolver:
             "points": None,
             "source": result.get("source"),
             "error": result.get("error"),
+        }
+
+    # ------------------------------------------------------------------ #
+    # V4 · 行为验证码 token（CapSolver）
+    # ------------------------------------------------------------------ #
+    async def solve_antibot_token(
+        self, kind: str, sitekey: str, page_url: str, **kwargs: Any
+    ) -> Dict[str, Any]:
+        """行为验证码出票：``kind`` ∈ recaptcha_v2 / hcaptcha / turnstile。
+
+        出票后配合 ``antibot_injector.inject_token`` 写入页面。
+        """
+        capsolver = self._get_capsolver()
+        if not capsolver.available:
+            return {
+                "success": False,
+                "token": None,
+                "source": "capsolver",
+                "error": "未配置 CAPSOLVER_API_KEY",
+            }
+        if kind == "recaptcha_v2":
+            return await capsolver.solve_recaptcha_v2(sitekey, page_url, **kwargs)
+        if kind == "hcaptcha":
+            return await capsolver.solve_hcaptcha(sitekey, page_url, **kwargs)
+        if kind == "turnstile":
+            return await capsolver.solve_turnstile(sitekey, page_url, **kwargs)
+        return {
+            "success": False,
+            "token": None,
+            "source": "capsolver",
+            "error": f"unknown kind: {kind}",
         }
 
     # ------------------------------------------------------------------ #

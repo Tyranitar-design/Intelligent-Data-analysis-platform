@@ -1,0 +1,5 @@
+  [OK  ] recaptcha-v2 出票+注入+验证 -- Verification Success... Hooray!
+  [FAIL] hcaptcha 出票+注入+验证 -- 出票失败: We don't support this service. Please contact support if you have any questions.
+  [FAIL] turnstile 出票+注入+验证 -- sitekey 未找到
+  [OK  ] 余额消耗 -- 5.9992 -> 5.9992
+RESULT: failures present

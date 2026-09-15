@@ -115,3 +115,36 @@ def test_image_captcha_ocr_batch(text):
     )
     assert result["success"] is True, result
     assert result["solution"].lower() == text, result
+
+
+# --------------------------------------------------------------------------- #
+# 免费优先链（ddddocr → CapSolver）+ V4 入口
+# --------------------------------------------------------------------------- #
+def test_antibot_token_without_key(monkeypatch):
+    monkeypatch.delenv("CAPSOLVER_API_KEY", raising=False)
+    solver = CaptchaSolver(api_key=None, capsolver_key=None)
+    result = asyncio.run(
+        solver.solve_antibot_token("recaptcha_v2", "sk", "https://x.test/")
+    )
+    assert result["success"] is False
+    assert "CAPSOLVER_API_KEY" in (result["error"] or "")
+
+
+def test_image_falls_back_to_capsolver(monkeypatch):
+    """ddddocr 不可用时 → CapSolver 兜底被调用。"""
+    from crawlers.anticrawl import captcha_solver as cs_mod
+
+    class FakeCapsolver:
+        available = True
+
+        async def solve_image(self, data):
+            return {"success": True, "text": "zz99", "confidence": 0.9}
+
+    monkeypatch.setattr(cs_mod, "_get_ddddocr", lambda: None)
+    solver = CaptchaSolver(api_key=None, capsolver_key="TEST-KEY")
+    solver._capsolver = FakeCapsolver()
+
+    result = asyncio.run(solver.solve_image_captcha(b"fake-image"))
+    assert result["success"] is True
+    assert result["solution"] == "zz99"
+    assert result["source"] == "capsolver"

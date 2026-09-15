@@ -1937,3 +1937,48 @@ V2b 拖拽闭环   OK       e2e 净位移受控（本地合成页）
 
 - 测试 **+9**（203 → 212）；**两处真实缺陷修复**（嵌套块提取截断 / async 截图失效）
 - 覆盖链：登录态（表单探测→复用）· 加密（提取→复现→防重放）· 验证码（探测→处理→解锁）
+
+## 阶段 Collect-Forge-4 · 能力增强（调研驱动：API 嗅探 + TLS 指纹）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`d76efb6`
+
+### 调研结论（多源交叉，结论带引用）
+
+| 增强项 | 交叉来源 | 置信 | 处置 |
+|---|---|---|---|
+| **XHR/API 嗅探直连** | dataprixa《Handling Dynamic Content》· context.dev 2026 · zenrows · medium | **高（4 源）** | **已实现** |
+| **curl_cffi TLS/HTTP2 指纹** | crawl4ai issue #1912 · webscraping.fyi《How Websites Block Scrapers》· scrapingbee 实测 · scrapfly 2026 榜单 | **高（4 源）** | **已实现** |
+| 代理池 / IP 轮换 | zenrows · dave's corner | 高 | 接口预留（需代理资源） |
+| camoufox 反检测浏览器 | webscraping.fyi 对比页 | 中 | 按需（已有 patchright 链） |
+| reCAPTCHA 音频挑战免费路径 | 单来源 | **不确定** | 标记（未验证） |
+
+### 交付
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| **API 嗅探器** | `crawlers/intelligent/api_sniffer.py` | Playwright 网络监听 → XHR/fetch JSON 接口提取（条数启发 + best_api 打分排序）→ **直连取数（免渲染）** |
+| **curl_cffi 集成** | `strategies/httpx_strategy.py` | 直采 **curl_cffi(impersonate=chrome) 优先 → httpx 兜底**；`metadata.tls` 标注 transport |
+| 真实站门禁 | `scripts/verify_real_targets.py` | 四方向实测（可复跑） |
+| 测试 | **+3（215 passed）** | 嗅探 e2e（SPA 仿真站）+ JA3 对比断言 + transport 标注 |
+
+### 真实站战果（全部真实目标 + 实时数据）
+
+```
+A · HN Algolia API 直连    OK  200 + 5 条实时故事（"Uv is the best thing to happen to the Python ecosystem"）
+B · 东方财富 K线（适配器）  OK  贵州茅台 2026-09-09：开 1305.01 / 收 1290.88 / 高 1309.30
+C · 真实站 XHR 嗅探        OK  点击 2015 → 捕获 ajax=true&year=2015 → 直连 16 行电影数据
+C2 · 直连复现（免渲染）     OK  （嗅探揭示了真实参数 ajax=true——手试 ajax=1 返回 HTML）
+D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
+```
+
+### 关键实证
+
+- **API 嗅探的实战价值**：真实 XHR 参数（`ajax=true`）与直觉猜测（`ajax=1`）不同——嗅探器直接从流量学习正确调用方式，避免盲猜。
+- **TLS 指纹**：curl_cffi 的 JA3 与裸 httpx 不同（测试断言实证）；直采层默认浏览器化指纹。
+
+### 剩余增强（按需）
+
+- 代理池接口（需代理资源接入）
+- camoufox 可选后端（patchright 已覆盖主场景）
+- （不确定项）reCAPTCHA 音频挑战免费方案——单来源，未交叉验证

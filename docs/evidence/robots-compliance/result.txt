@@ -1,0 +1,17 @@
+  [OK  ] 对照·练习站 → 合规判定：允许 -- allowed=True source=default rule=(默认) crawl_delay=None probe=HTTP 200
+  [OK  ] B站·视频页 → 合规判定：允许 -- allowed=True source=robots.txt rule=(默认) crawl_delay=None probe=HTTP 200
+  [OK  ] 京东·首页 → 合规判定：允许 -- allowed=True source=invalid rule=(默认) crawl_delay=None probe=HTTP 200
+  [OK  ] 京东·商品页 → 合规判定：允许 -- allowed=True source=default rule=(默认) crawl_delay=None probe=HTTP 200
+  [OK  ] 淘宝·首页 → 合规判定：允许 -- allowed=True source=robots.txt rule=Allow /$ crawl_delay=None probe=HTTP 200
+  [OK  ] 淘宝·商品页 → 合规判定：阻断 -- allowed=False source=robots.txt rule=Disallow / crawl_delay=None probe=skipped(不可采)
+  [OK  ] 校准：练习站对照允许 -- control={'label': '对照·练习站', 'url': 'https://quotes.toscrape.com/', 'allowed': True, 'source': 'default', 'rule': '(默认)', 'crawl_delay': None, 'probe': 'HTTP 200'}
+  [OK  ] 纪律：不可采目标零请求 -- probed=5 skipped=1
+
+--- 判定明细 ---
+  对照·练习站: allowed=True rule=(默认) delay=None probe=HTTP 200
+  B站·视频页: allowed=True rule=(默认) delay=None probe=HTTP 200
+  京东·首页: allowed=True rule=(默认) delay=None probe=HTTP 200
+  京东·商品页: allowed=True rule=(默认) delay=None probe=HTTP 200
+  淘宝·首页: allowed=True rule=Allow /$ delay=None probe=HTTP 200
+  淘宝·商品页: allowed=False rule=Disallow / delay=None probe=skipped(不可采)
+RESULT: all checks passed

@@ -82,6 +82,7 @@ class RobotsChecker:
     def __init__(self, user_agent: str = None):
         self.user_agent = user_agent or self.DEFAULT_USER_AGENT
         self._cache: Dict[str, Tuple[float, List[RobotsRule], Dict]] = {}  # domain -> (timestamp, rules, meta)
+        self._last_robots_invalid = False  # 上次 robots 拉取是否返回伪装内容（HTML 等）
     
     def _get_robots_url(self, url: str) -> str:
         """获取 robots.txt 的 URL"""
@@ -89,14 +90,27 @@ class RobotsChecker:
         return f"{parsed.scheme}://{parsed.netloc}/robots.txt"
     
     async def _fetch_robots_txt(self, robots_url: str) -> Optional[str]:
-        """获取 robots.txt 内容"""
+        """获取 robots.txt 内容。
+
+        内容校验：robots.txt 不应是 HTML——部分站点（如京东）会把 robots.txt
+        请求伪装重定向到首页，此时标记 invalid 并返回 None（保守默认 + 强警告）。
+        """
+        self._last_robots_invalid = False
         try:
             async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
                 response = await client.get(robots_url, headers={
                     "User-Agent": self.user_agent,
                 })
                 if response.status_code == 200:
-                    return response.text
+                    content = response.text
+                    head = content.lstrip()[:60].lower()
+                    if head.startswith("<!doctype") or head.startswith("<html"):
+                        logger.warning(
+                            "robots.txt 返回疑似 HTML（可能被风控伪装）: %s", robots_url
+                        )
+                        self._last_robots_invalid = True
+                        return None
+                    return content
                 elif response.status_code == 404:
                     # 没有 robots.txt，默认允许
                     return None
@@ -226,8 +240,12 @@ class RobotsChecker:
         content = await self._fetch_robots_txt(robots_url)
         
         if content is None:
-            # 没有 robots.txt 或获取失败，默认允许
-            return [], {"crawl_delay": None, "sitemaps": []}
+            # 没有 robots.txt / 获取失败 / 内容被伪装，默认允许（invalid 时强警告）
+            return [], {
+                "crawl_delay": None,
+                "sitemaps": [],
+                "invalid": self._last_robots_invalid,
+            }
         
         rules, meta = self._parse_robots_txt(content)
         
@@ -254,6 +272,18 @@ class RobotsChecker:
             rules, meta = await self._get_rules(url)
             
             if not rules:
+                if meta.get("invalid"):
+                    return ComplianceReport(
+                        url=url,
+                        allowed=True,
+                        source="invalid",
+                        crawl_delay=meta.get("crawl_delay"),
+                        sitemap=None,
+                        warnings=[
+                            "robots.txt 返回非文本内容（疑似风控伪装，如重定向到首页）——"
+                            "无法验证规则，默认可访问但建议人工确认后再采集"
+                        ],
+                    )
                 # 没有 robots.txt 或没有匹配规则
                 return ComplianceReport(
                     url=url,

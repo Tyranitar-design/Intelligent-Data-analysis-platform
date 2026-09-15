@@ -91,7 +91,7 @@ cd ..
 
 - **178 测试全绿**（隔离测试库；主库哨兵防止测试写脏数据）
 - **实机门禁证据**：`docs/evidence/`（各阶段截图 + `result.txt`，含「导出触发 → 审计落库」类端到端断言）
-- 首屏预算 ≈**134KB gzip**（上限 300KB）；展示岛 three.js chunk 独立懒加载
+- 首屏预算 **228.7KB gzip**（入口四件套合计；上限 300KB，`verify_perf_budget.py` 守护）；echarts / three.js 均为按需加载
 - 可观测：`GET /api/v1/monitor/metrics`（Prometheus 文本格式）、`/monitor` 保留报告
 
 ## 文档索引

@@ -1,0 +1,9 @@
+  OK    index.html does not preload chart-vendor  --  first-load=['index-CPnxMOUV.css', 'index-DVsNid9m.js', 'motion-vendor-wdQ55rWQ.js', 'react-vendor-mWnVeigv.js']
+  OK    index.html does not preload nebula-scene  --  
+  OK    first-load gzip <= 300KB  --  total=228.7KB :: index-CPnxMOUV.css=16.8 index-DVsNid9m.js=128.6 motion-vendor-wdQ55rWQ.js=30.9 react-vendor-mWnVeigv.js=52.4
+  OK    real first paint: no chart-vendor request  --  js=['index-DVsNid9m.js', 'react-vendor-mWnVeigv.js', 'motion-vendor-wdQ55rWQ.js']
+  OK    real first paint: no nebula-scene request  --  
+  OK    analytics lazy chunk loads on demand  --  js=['index-DVsNid9m.js', 'react-vendor-mWnVeigv.js', 'motion-vendor-wdQ55rWQ.js', 'Analytics-RCxiR4Np.js']
+  OK    analytics page renders  --  body_chars=245
+  OK    no page errors  --  
+RESULT: all checks passed

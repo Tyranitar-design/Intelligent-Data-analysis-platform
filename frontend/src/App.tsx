@@ -7,6 +7,7 @@
  * 已被后端新链路覆盖：分析与建模通过 /analytics 统一入口调用，
  * 界面上不再需要各自独立的页面。
  */
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -25,8 +26,11 @@ import DatasetsPage from '@/pages/Datasets'
 import DatasetDetailPage from '@/pages/DatasetDetail'
 import ComparePage from '@/pages/Compare'
 import ShowcasePage from '@/pages/Showcase'
-import AnalyticsPage from '@/pages/Analytics'
 import ReportsPage from '@/pages/Reports'
+
+// 按需加载：Analytics 携带 echarts（chart-vendor ≈195KB gzip），
+// 静态引入会把 chart-vendor 拉进首屏 preload（v5 验收 5.1-2 预算）。
+const AnalyticsPage = lazy(() => import('@/pages/Analytics'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,7 +61,20 @@ export default function App() {
           <Route path="datasets/:id" element={<DatasetDetailPage />} />
           <Route path="compare" element={<ComparePage />} />
           <Route path="showcase" element={<ShowcasePage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route
+            path="analytics"
+            element={
+              <Suspense
+                fallback={
+                  <div className="glass rounded-xl px-5 py-10 text-sm text-muted-foreground">
+                    正在加载图表引擎…
+                  </div>
+                }
+              >
+                <AnalyticsPage />
+              </Suspense>
+            }
+          />
           <Route path="reports" element={<ReportsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

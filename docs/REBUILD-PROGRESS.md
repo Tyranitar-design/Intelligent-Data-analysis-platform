@@ -1742,3 +1742,35 @@ RESULT: all checks passed     （全量 pytest：178 passed）
 - 相关度排序（命中词数）未做——保持 `ORDER BY id` 的稳定分页语义，留待有真实排序诉求时再加。
 
 P9 至此全部收官（P9a 检索对比 / P9b 审计点+版本+保留 / D4 检索深化）。
+
+## 阶段 F7 · 演示资产（P12 收官）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`abe4b31`
+目标：v5 验收 5.1-4/5 —— 一键演示脚本 + README 门面（GIF / 架构图 / 测试徽章 / 90 秒入口）。
+
+### 交付
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| 一键演示 | `scripts/demo.ps1` | 起后端 :8000 + 前端 :5173，就绪等待 + 90 秒路线（S1→S3）+ 打开 showcase；`-Stop` 收尾；前置检查（venv/node_modules/端口占用）；state 文件记 PID |
+| 演示资产采集 | `backend/scripts/capture_demo_assets.py` | Playwright 录屏（webm）→ ffmpeg 两遍法转 GIF；8 张关键页截图 |
+| 演示 GIF | `docs/assets/demo/demo.gif` | 680px · 100 帧 · **4.14MB**（≤5MB 预算达标） |
+| 截图组 | `docs/assets/demo/shot-0*.png` | 星云 / 工作台 / 判别 / 采集 / 数据集 / 合规 / 监视 / 审计（1280x720，深色主题像素验证通过） |
+| 徽章 | `docs/assets/badges/*.svg` | tests 178 passed / python 3.11+ / react 18（本地 SVG，离线可渲染） |
+| README 门面 | `README.md`（新建） | 首屏：一句话 + 徽章 + GIF + 90 秒演示入口；mermaid 架构图；核心能力表；快速开始；验证现状（178 tests / 126 端点 / 134KB gzip）；文档索引 |
+
+### 验收（对照 v5 §5.1）
+
+- 4 ✅：`scripts/demo.ps1` 实跑验证（启动 → 后端/前端 200 → `-Stop` 端口释放 0/0）
+- 5 ✅：README 首屏含 GIF（4.14MB ≤5MB）+ 徽章 + 架构图 + 演示入口
+
+### 踩坑留档
+
+- PowerShell 5.1 读取**无 BOM UTF-8** 的 .ps1 会按 ANSI 解析 → 中文串断裂（解析错误）；
+  demo.ps1 存为 **utf-8-sig**。run-dev.ps1 现状不动（稳定资产）。
+- GIF 压缩参数链：10.9MB（880px/8fps）→ 5.95MB（760px/6fps）→ **4.14MB（680px/5fps/截 20s）**。
+
+### P12 状态
+
+F5 星云 / F6 `/showcase`（L3 阶段完成）+ **F7 演示资产（本阶段）** → **P12 收官**。

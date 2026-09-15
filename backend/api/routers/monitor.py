@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
@@ -245,3 +246,34 @@ def prometheus_metrics(db: Session = Depends(get_db)) -> str:
     )
 
     return "\n".join(lines) + "\n"
+
+
+@router.get("/retention", summary="数据保留报告")
+def retention_report(db: Session = Depends(get_db)) -> dict:
+    """各数据资产的存量与时间范围（只读报告，不做删除）。
+
+    用途：决定清理策略前先看清"有什么、多老、增长多快"。
+    """
+    def summarize(model, ts_column) -> dict:
+        count = db.execute(select(func.count()).select_from(model)).scalar_one()
+        oldest = db.execute(select(func.min(ts_column))).scalar_one()
+        newest = db.execute(select(func.max(ts_column))).scalar_one()
+        return {
+            "count": count,
+            "oldest": oldest.isoformat() if oldest else None,
+            "newest": newest.isoformat() if newest else None,
+        }
+
+    tables = {
+        "collect_items": summarize(CollectItem, CollectItem.first_seen),
+        "datasets": summarize(Dataset, Dataset.created_at),
+        "audit_logs": summarize(AuditLog, AuditLog.ts),
+        "compliance_verdicts": summarize(
+            ComplianceVerdict, ComplianceVerdict.created_at
+        ),
+    }
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "tables": tables,
+        "total_rows": sum(entry["count"] for entry in tables.values()),
+    }

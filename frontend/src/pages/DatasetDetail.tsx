@@ -14,6 +14,7 @@ import {
   Database,
   Download,
   GitBranch,
+  History,
   Loader2,
   RefreshCw,
   Search,
@@ -81,6 +82,23 @@ interface PreviewPayload {
   query?: { q: string | null; field: string | null }
 }
 
+interface DatasetVersion {
+  id: number
+  name: string
+  row_count: number
+  column_count: number
+  collect_job_id: number | null
+  created_at: string | null
+  is_current: boolean
+}
+
+interface VersionsPayload {
+  dataset_id: number
+  plan_id: number | null
+  current_index: number
+  versions: DatasetVersion[]
+}
+
 const PAGE_SIZE = 50
 
 const PII_LABEL: Record<string, string> = {
@@ -115,6 +133,7 @@ export default function DatasetDetailPage() {
   const { id } = useParams()
   const datasetId = Number(id)
   const [data, setData] = useState<PreviewPayload | null>(null)
+  const [versions, setVersions] = useState<VersionsPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [offset, setOffset] = useState(0)
@@ -136,18 +155,24 @@ export default function DatasetDetailPage() {
     setLoading(true)
     setError(null)
     try {
-      const { data: payload } = await apiClient.get<PreviewPayload>(
-        `/collect/datasets/${datasetId}/search`,
-        {
-          params: {
-            limit: PAGE_SIZE,
-            offset,
-            ...(activeQuery.q ? { q: activeQuery.q } : {}),
-            ...(activeQuery.field ? { field: activeQuery.field } : {}),
+      const [{ data: payload }, versionsResponse] = await Promise.all([
+        apiClient.get<PreviewPayload>(
+          `/collect/datasets/${datasetId}/search`,
+          {
+            params: {
+              limit: PAGE_SIZE,
+              offset,
+              ...(activeQuery.q ? { q: activeQuery.q } : {}),
+              ...(activeQuery.field ? { field: activeQuery.field } : {}),
+            },
           },
-        },
-      )
+        ),
+        apiClient
+          .get<VersionsPayload>(`/collect/datasets/${datasetId}/versions`)
+          .catch(() => null),
+      ])
       setData(payload)
+      setVersions(versionsResponse?.data ?? null)
     } catch {
       setError('数据集不存在或加载失败')
     } finally {
@@ -360,6 +385,80 @@ export default function DatasetDetailPage() {
           )}
         </Reveal>
       </div>
+
+      {/* ---------------- 版本历史 ---------------- */}
+      {versions &&
+        versions.versions.length > 0 &&
+        (versions.versions.length > 1 || versions.plan_id != null) && (
+          <Reveal delay={0.12} className="glass overflow-hidden rounded-xl">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-5 py-3.5">
+              <History className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">
+                版本历史（{versions.versions.length}）
+              </h3>
+              {versions.plan_id != null && (
+                <span className="text-[0.68rem] text-muted-foreground">
+                  同一采集计划 plan_{versions.plan_id} 的历次物化
+                </span>
+              )}
+            </div>
+            <ul className="divide-y divide-border/40">
+              {versions.versions.map((version, index) => (
+                <li
+                  key={version.id}
+                  className={cn(
+                    'flex flex-wrap items-center justify-between gap-3 px-5 py-2.5',
+                    version.is_current && 'bg-primary/5',
+                  )}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={cn(
+                        'grid h-6 w-8 shrink-0 place-items-center rounded-md text-[0.64rem] font-semibold tabular-nums',
+                        version.is_current
+                          ? 'bg-primary/15 text-primary'
+                          : 'bg-muted/60 text-muted-foreground',
+                      )}
+                    >
+                      v{index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-xs font-medium">
+                          {version.name}
+                        </span>
+                        {version.is_current && (
+                          <span className="chip chip-active">当前</span>
+                        )}
+                      </div>
+                      <div className="text-[0.68rem] tabular-nums text-muted-foreground">
+                        {(version.row_count ?? 0).toLocaleString()} 行 ×{' '}
+                        {version.column_count ?? '—'} 列
+                        {version.created_at
+                          ? ` · ${formatDateTime(version.created_at)}`
+                          : ''}
+                      </div>
+                    </div>
+                  </div>
+                  {!version.is_current && (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Link to={`/compare?a=${datasetId}&b=${version.id}`}>
+                        <Button variant="outline" size="sm" className="h-7">
+                          对比
+                        </Button>
+                      </Link>
+                      <Link to={`/datasets/${version.id}`}>
+                        <Button variant="ghost" size="sm" className="h-7">
+                          查看
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        )}
 
       {/* ---------------- 数据预览 ---------------- */}
       {data.missing_table ? (

@@ -1,0 +1,9 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    versions chain returns [1, 2]  --  ids=[1, 2] idx=1 plan=1
+  OK    export wrote audit log  --  log=('web-console', 'export.dataset', 'ok', '2', '{"format": "csv", "filename": "collect_job_1_20260914-044238.csv"}')
+  OK    retention has 4 assets + total  --  total=19 ds=2
+  OK    dataset detail shows version card  --  v1 True v2 True
+  OK    compare auto-runs from url params  --  
+  OK    monitor shows retention card  --  
+RESULT: all checks passed

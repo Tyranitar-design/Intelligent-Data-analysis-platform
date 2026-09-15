@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 
 from api.models import CollectPlan, CollectSchedule, ComplianceVerdict
 from collect.scheduler import CollectScheduler
+from mcp.audit import record as record_audit
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +219,15 @@ async def execute_schedule(
         schedule.run_count = (schedule.run_count or 0) + 1
         schedule.next_run_at = compute_next_run(schedule, base=now, now=now)
         db.commit()
+        record_audit(
+            db,
+            principal_id="scheduler",
+            action="collect.schedule_run",
+            result="denied",
+            target_type="collect_schedule",
+            target_id=str(schedule.id),
+            detail={"reason": block_reason},
+        )
         logger.warning("调度跳过（合规）：schedule=%s reason=%s", schedule.id, block_reason)
         return {
             "schedule_id": schedule.id,
@@ -244,6 +254,16 @@ async def execute_schedule(
         schedule.fail_count = (schedule.fail_count or 0) + 1
     schedule.next_run_at = compute_next_run(schedule, base=now, now=now)
     db.commit()
+
+    record_audit(
+        db,
+        principal_id="scheduler",
+        action="collect.schedule_run",
+        result="ok" if run_status != "failed" else "error",
+        target_type="collect_schedule",
+        target_id=str(schedule.id),
+        detail={"job_id": job.id, "status": run_status},
+    )
 
     logger.info(
         "调度执行完成 schedule=%s job=%s status=%s next=%s",

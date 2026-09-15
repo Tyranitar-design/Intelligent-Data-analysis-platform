@@ -12,14 +12,15 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from api.core.database import SessionLocal, init_db
 from api.main import app
-from api.models import Dataset, CollectItem, CollectJob, CollectTask
+from api.models import CollectItem, CollectJob, CollectPlan, CollectTask, Dataset
 from pipeline.storage import DatasetMaterializer
 
 PREFIX = "diff-test"
+VERSIONS_TARGET = "https://versions-test/list"
 
 
 @pytest.fixture(scope="function")
@@ -36,6 +37,17 @@ def session():
     )
     for row in rows:
         materializer.drop_dataset(row.id)
+    # 版本链测试的采集链（plan → jobs → tasks/items）
+    plan_ids = select(CollectPlan.id).where(
+        CollectPlan.target_url.like("%versions-test%")
+    )
+    job_ids = select(CollectJob.id).where(CollectJob.plan_id.in_(plan_ids))
+    db.execute(delete(CollectItem).where(CollectItem.job_id.in_(job_ids)))
+    db.execute(delete(CollectTask).where(CollectTask.job_id.in_(job_ids)))
+    db.execute(delete(CollectJob).where(CollectJob.plan_id.in_(plan_ids)))
+    db.execute(
+        delete(CollectPlan).where(CollectPlan.target_url.like("%versions-test%"))
+    )
     db.commit()
     db.close()
 
@@ -174,3 +186,66 @@ def test_list_datasets_contract(session):
         "row_count" in item and "name" in item and "created_at" in item
         for item in items
     )
+
+
+def test_versions_chain_within_plan(session):
+    """同一计划的两次物化 → 版本链按顺序、current 标记正确。"""
+    plan = CollectPlan(target_url=VERSIONS_TARGET, status="ready")
+    session.add(plan)
+    session.commit()
+    session.refresh(plan)
+
+    job1 = CollectJob(
+        plan_id=plan.id, status="succeeded", total_tasks=1, done_tasks=1,
+        items_count=1, dedup_stats={},
+    )
+    job2 = CollectJob(
+        plan_id=plan.id, status="succeeded", total_tasks=1, done_tasks=1,
+        items_count=2, dedup_stats={},
+    )
+    session.add_all([job1, job2])
+    session.commit()
+    session.refresh(job1)
+    session.refresh(job2)
+
+    ds1 = _make_dataset(session, [{"title": "v1"}], f"{PREFIX}-v1")
+    ds1.collect_job_id = job1.id
+    ds2 = _make_dataset(
+        session, [{"title": "v1"}, {"title": "v2"}], f"{PREFIX}-v2"
+    )
+    ds2.collect_job_id = job2.id
+    session.commit()
+
+    client = TestClient(app)
+    resp = client.get(f"/api/v1/collect/datasets/{ds2.id}/versions")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["plan_id"] == plan.id
+    assert [v["id"] for v in payload["versions"]] == [ds1.id, ds2.id]
+    assert payload["current_index"] == 1
+    assert payload["versions"][1]["is_current"] is True
+    assert payload["versions"][0]["is_current"] is False
+    assert payload["versions"][1]["row_count"] == 2
+
+    # 从 v1 进入：当前位是链中的首条
+    resp = client.get(f"/api/v1/collect/datasets/{ds1.id}/versions")
+    assert resp.json()["current_index"] == 0
+
+
+def test_versions_single_for_standalone_dataset(session):
+    """无采集来源的数据集：单元素链 + plan_id 为空。"""
+    dataset = _make_dataset(session, [{"title": "solo"}], f"{PREFIX}-solo")
+    client = TestClient(app)
+
+    resp = client.get(f"/api/v1/collect/datasets/{dataset.id}/versions")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["plan_id"] is None
+    assert len(payload["versions"]) == 1
+    assert payload["versions"][0]["is_current"] is True
+
+
+def test_versions_missing_dataset_404(session):
+    client = TestClient(app)
+    resp = client.get("/api/v1/collect/datasets/999999/versions")
+    assert resp.status_code == 404

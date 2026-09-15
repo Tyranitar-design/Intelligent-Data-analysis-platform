@@ -33,6 +33,7 @@ from api.models import (
     SiteProfile,
 )
 from api.schemas.collect import PlanRequest, RunRequest, ScheduleCreate, ScheduleUpdate
+from mcp.audit import record as record_audit
 from collect.registry import build_default_registry
 from collect.schedule_runner import (
     compliance_block_reason,
@@ -201,8 +202,26 @@ async def run_plan(payload: RunRequest, db: Session = Depends(get_db)) -> dict:
         job.finished_at = datetime.now(timezone.utc)
         job.error_dist = {"execution_error": 1}
         db.commit()
+        record_audit(
+            db,
+            principal_id="web-console",
+            action="collect.run",
+            result="error",
+            target_type="collect_job",
+            target_id=str(job.id),
+            detail={"plan_id": plan.id, "status": "failed", "error": str(exc)[:200]},
+        )
         return {"job": job.to_dict(), "error": str(exc)[:300]}
 
+    record_audit(
+        db,
+        principal_id="web-console",
+        action="collect.run",
+        result="ok" if job.status != "failed" else "error",
+        target_type="collect_job",
+        target_id=str(job.id),
+        detail={"plan_id": plan.id, "status": job.status, "items": job.items_count},
+    )
     return {"job": job.to_dict()}
 
 
@@ -342,8 +361,26 @@ async def resume_job(job_id: int, db: Session = Depends(get_db)) -> dict:
         job.status = "failed"
         job.error_dist = {**(job.error_dist or {}), "resume_error": 1}
         db.commit()
+        record_audit(
+            db,
+            principal_id="web-console",
+            action="collect.resume",
+            result="error",
+            target_type="collect_job",
+            target_id=str(job.id),
+            detail={"status": "failed", "error": str(exc)[:200]},
+        )
         return {"job": job.to_dict(), "error": str(exc)[:300]}
 
+    record_audit(
+        db,
+        principal_id="web-console",
+        action="collect.resume",
+        result="ok" if job.status != "failed" else "error",
+        target_type="collect_job",
+        target_id=str(job.id),
+        detail={"status": job.status, "items": job.items_count},
+    )
     return {"job": job.to_dict()}
 
 
@@ -373,6 +410,20 @@ def materialize_collect_job(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    record_audit(
+        db,
+        principal_id="web-console",
+        action="dataset.materialize",
+        result="ok",
+        target_type="dataset",
+        target_id=str(dataset.id),
+        detail={
+            "job_id": job_id,
+            "row_count": dataset.row_count,
+            "column_count": dataset.column_count,
+            "pii_applied": apply_pii,
+        },
+    )
     return dataset.to_dict()
 
 
@@ -460,6 +511,60 @@ def diff_datasets(
         return materializer.diff_datasets(a, b)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/datasets/{dataset_id}/versions", summary="同来源数据集版本序列")
+def dataset_versions(dataset_id: int, db: Session = Depends(get_db)) -> dict:
+    """同一采集计划产出的数据集版本链（按物化顺序正序）。
+
+    版本关联靠 ``dataset.collect_job_id -> collect_job.plan_id``；
+    非采集来源（如导入/样本数据集）没有版本链，返回单元素序列。
+    """
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="数据集不存在")
+
+    versions: list[Dataset] = []
+    plan_id: int | None = None
+    if dataset.collect_job_id:
+        job = db.get(CollectJob, dataset.collect_job_id)
+        if job is not None:
+            plan_id = job.plan_id
+            sibling_job_ids = select(CollectJob.id).where(
+                CollectJob.plan_id == plan_id
+            )
+            versions = list(
+                db.execute(
+                    select(Dataset)
+                    .where(Dataset.collect_job_id.in_(sibling_job_ids))
+                    .order_by(Dataset.id.asc())
+                )
+                .scalars()
+                .all()
+            )
+    if not versions:
+        versions = [dataset]
+
+    current_index = next(
+        (i for i, v in enumerate(versions) if v.id == dataset_id), 0
+    )
+    return {
+        "dataset_id": dataset_id,
+        "plan_id": plan_id,
+        "current_index": current_index,
+        "versions": [
+            {
+                "id": v.id,
+                "name": v.name,
+                "row_count": v.row_count,
+                "column_count": v.column_count,
+                "collect_job_id": v.collect_job_id,
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+                "is_current": v.id == dataset_id,
+            }
+            for v in versions
+        ],
+    }
 
 
 # --------------------------------------------------------------------------- #

@@ -16,7 +16,8 @@ from sqlalchemy import delete, select
 
 from api.core.database import SessionLocal, init_db
 from api.main import app
-from api.models import CollectJob, CollectPlan, CollectSchedule
+from api.models import CollectJob, CollectPlan, CollectSchedule, Dataset
+from pipeline.storage import DatasetMaterializer
 
 PREFIX = "monitor-test"
 TARGET = "https://monitor.test/list"
@@ -28,6 +29,13 @@ def session():
     db = SessionLocal()
     yield db
     db.rollback()
+    materializer = DatasetMaterializer(db)
+    for row in (
+        db.execute(select(Dataset).where(Dataset.name.like(f"{PREFIX}%")))
+        .scalars()
+        .all()
+    ):
+        materializer.drop_dataset(row.id)
     plan_ids = select(CollectPlan.id).where(CollectPlan.target_url.like("%monitor.test%"))
     db.execute(delete(CollectSchedule).where(CollectSchedule.name.like(f"{PREFIX}%")))
     db.execute(
@@ -104,3 +112,40 @@ def test_monitor_rate_tracks_domain(session):
         assert "throttled" in snapshot
     finally:
         limiter.reset("monitor.test")
+
+
+def test_retention_report_contract(session):
+    client = TestClient(app)
+    resp = client.get("/api/v1/monitor/retention")
+    assert resp.status_code == 200
+    payload = resp.json()
+
+    assert payload["generated_at"]
+    tables = payload["tables"]
+    for key in ("collect_items", "datasets", "audit_logs", "compliance_verdicts"):
+        assert key in tables, f"保留报告缺少 {key}"
+        assert isinstance(tables[key]["count"], int)
+    assert payload["total_rows"] == sum(
+        entry["count"] for entry in tables.values()
+    )
+
+
+def test_retention_counts_reflect_new_dataset(session):
+    """新增一个数据集后 datasets 计数 +1（聚合口径实时）。"""
+    client = TestClient(app)
+    before = client.get("/api/v1/monitor/retention").json()
+
+    materializer = DatasetMaterializer(session)
+    materializer.materialize_records(
+        [{"title": "retention 观测"}],
+        name=f"{PREFIX}-retention-ds",
+        source_type="test",
+        apply_pii=False,
+    )
+
+    after = client.get("/api/v1/monitor/retention").json()
+    assert (
+        after["tables"]["datasets"]["count"]
+        == before["tables"]["datasets"]["count"] + 1
+    )
+    assert after["total_rows"] == before["total_rows"] + 1

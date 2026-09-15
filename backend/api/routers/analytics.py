@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from analysis.facade import SUPPORTED_TYPES, AnalysisFacade
 from api.core.database import get_db
+from mcp.audit import record as record_audit
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -109,6 +110,15 @@ def export_dataset(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    record_audit(
+        db,
+        principal_id="web-console",
+        action="export.dataset",
+        result="ok",
+        target_type="dataset",
+        target_id=str(dataset_id),
+        detail={"format": format, "filename": filename},
+    )
     return Response(
         content=content,
         media_type=media_type,

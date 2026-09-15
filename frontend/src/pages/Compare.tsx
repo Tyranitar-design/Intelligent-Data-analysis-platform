@@ -8,7 +8,8 @@
  * - 同一来源的两次采集（版本演进：字段增减、行数变化）；
  * - 不同来源同类数据的对照（schema 对齐程度）。
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ArrowLeftRight, GitCompare, Loader2 } from 'lucide-react'
 
 import apiClient from '@/api/client'
@@ -65,13 +66,16 @@ function formatDateTime(iso: string | null): string {
 }
 
 export default function ComparePage() {
+  const [searchParams] = useSearchParams()
   const [options, setOptions] = useState<DatasetOption[]>([])
-  const [a, setA] = useState<string>('')
-  const [b, setB] = useState<string>('')
+  // 支持 /compare?a=..&b=.. 带入预选（如数据集版本卡的「对比」入口）
+  const [a, setA] = useState<string>(searchParams.get('a') ?? '')
+  const [b, setB] = useState<string>(searchParams.get('b') ?? '')
   const [diff, setDiff] = useState<DiffPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [comparing, setComparing] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const autoCompared = useRef(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -91,6 +95,17 @@ export default function ComparePage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // URL 带入 a/b 时自动执行一次对比（从版本卡跳转即见结果）
+  useEffect(() => {
+    if (autoCompared.current || !a || !b) return
+    if (options.length === 0) return
+    const hasA = options.some((o) => String(o.dataset_id) === a)
+    const hasB = options.some((o) => String(o.dataset_id) === b)
+    if (!hasA || !hasB) return
+    autoCompared.current = true
+    void compare()
+  }, [options, a, b]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function compare() {
     if (!a || !b) {

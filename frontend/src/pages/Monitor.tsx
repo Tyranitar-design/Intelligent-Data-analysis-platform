@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
+  Archive,
   Gauge,
   Loader2,
   RefreshCw,
@@ -59,7 +60,26 @@ interface MonitorStats {
   }
 }
 
+interface RetentionEntry {
+  count: number
+  oldest: string | null
+  newest: string | null
+}
+
+interface RetentionPayload {
+  generated_at: string
+  tables: Record<string, RetentionEntry>
+  total_rows: number
+}
+
 const AUTO_REFRESH_MS = 30_000
+
+const RETENTION_LABELS: [string, string][] = [
+  ['collect_items', '采集条目'],
+  ['datasets', '数据集'],
+  ['audit_logs', '审计日志'],
+  ['compliance_verdicts', '合规判定'],
+]
 
 function formatBytes(bytes: number | null): string {
   if (bytes == null) return '—'
@@ -68,8 +88,22 @@ function formatBytes(bytes: number | null): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+function formatShort(iso: string | null): string {
+  if (!iso) return '—'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 export default function MonitorPage() {
   const [stats, setStats] = useState<MonitorStats | null>(null)
+  const [retention, setRetention] = useState<RetentionPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [auto, setAuto] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -77,8 +111,14 @@ export default function MonitorPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const { data } = await apiClient.get<MonitorStats>('/monitor/stats')
+      const [{ data }, retentionResponse] = await Promise.all([
+        apiClient.get<MonitorStats>('/monitor/stats'),
+        apiClient
+          .get<RetentionPayload>('/monitor/retention')
+          .catch(() => null),
+      ])
       setStats(data)
+      if (retentionResponse) setRetention(retentionResponse.data)
       setLastUpdated(new Date())
     } catch {
       // 保持上次快照
@@ -293,6 +333,57 @@ export default function MonitorPage() {
           <span className="mono-tag">GET /api/v1/monitor/metrics</span>
           Prometheus 文本格式 —— 可接入 scrape，或用于人工诊断
         </div>
+      </Reveal>
+
+      {/* ---------------- 数据保留（只读报告） ---------------- */}
+      <Reveal delay={0.2} className="glass overflow-hidden rounded-xl">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-5 py-3.5">
+          <div className="flex items-center gap-2">
+            <Archive className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">数据保留（只读）</h3>
+          </div>
+          <span className="text-[0.68rem] tabular-nums text-muted-foreground">
+            共 {retention?.total_rows.toLocaleString() ?? '—'} 行 · 报告不做自动删除
+          </span>
+        </div>
+        {retention ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-xs">
+              <thead className="text-muted-foreground">
+                <tr className="border-b border-border/40">
+                  <th className="px-5 py-2.5 font-medium">资产</th>
+                  <th className="px-3 py-2.5 font-medium">条数</th>
+                  <th className="px-3 py-2.5 font-medium">最早</th>
+                  <th className="px-3 py-2.5 font-medium">最新</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {RETENTION_LABELS.map(([key, label]) => {
+                  const entry = retention.tables[key]
+                  if (!entry) return null
+                  return (
+                    <tr key={key} className="transition-colors hover:bg-muted/30">
+                      <td className="px-5 py-2.5 font-medium">{label}</td>
+                      <td className="px-3 py-2.5 tabular-nums">
+                        {entry.count.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                        {formatShort(entry.oldest)}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                        {formatShort(entry.newest)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="px-5 py-6 text-center text-sm text-muted-foreground">
+            保留报告暂不可用
+          </div>
+        )}
       </Reveal>
     </div>
   )

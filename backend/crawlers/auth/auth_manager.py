@@ -13,6 +13,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from .cookie_store import CookieStore
+from .form_detector import detect_login_form
 from .login_flows import get_login_flow, list_supported_platforms
 
 logger = logging.getLogger(__name__)
@@ -60,29 +61,14 @@ class AuthManager:
         """
         # 获取平台配置
         flow = get_login_flow(platform)
-        
-        # 使用预置配置或自定义参数
+
+        # 选择器：自定义参数 > 平台预置 > （导航后）自动探测
         login_url = login_url or flow.get("login_url")
-        username_selector = username_selector or flow.get("username_selector", "#username")
-        password_selector = password_selector or flow.get("password_selector", "#password")
-        submit_selector = submit_selector or flow.get("submit_selector", "#login")
+        username_selector = username_selector or flow.get("username_selector")
+        password_selector = password_selector or flow.get("password_selector")
+        submit_selector = submit_selector or flow.get("submit_selector")
         wait_for = wait_for or flow.get("wait_for")
-        """
-        使用 Playwright 自动登录
 
-        Args:
-            platform: 平台名称
-            login_url: 登录页面 URL
-            username: 用户名
-            password: 密码
-            username_selector: 用户名输入框选择器
-            password_selector: 密码输入框选择器
-            submit_selector: 提交按钮选择器
-            wait_for: 登录成功后等待的元素
-
-        Returns:
-            登录结果
-        """
         if not PLAYWRIGHT_AVAILABLE:
             return {"success": False, "error": "Playwright 未安装"}
 
@@ -97,8 +83,18 @@ class AuthManager:
             # 导航到登录页
             await page.goto(login_url, wait_until="networkidle", timeout=30000)
 
-            # 填写用户名
-            await page.fill(username_selector, username)
+            # 选择器缺省时自动探测登录表单（通用化关键）
+            if not (username_selector and password_selector):
+                detected = await detect_login_form(page) or {}
+                username_selector = username_selector or detected.get("username")
+                password_selector = password_selector or detected.get("password")
+                submit_selector = submit_selector or detected.get("submit")
+            if not password_selector or not submit_selector:
+                return {"success": False, "error": "无法定位登录表单（password/submit 缺失）"}
+
+            # 填写用户名（部分站点允许空用户名，字段缺失时跳过）
+            if username_selector:
+                await page.fill(username_selector, username)
 
             # 填写密码
             await page.fill(password_selector, password)
@@ -106,11 +102,30 @@ class AuthManager:
             # 点击登录
             await page.click(submit_selector)
 
-            # 等待登录成功
+            # 等待登录完成
             if wait_for:
                 await page.wait_for_selector(wait_for, timeout=10000)
             else:
-                await asyncio.sleep(3)
+                await asyncio.sleep(2.5)
+
+            # 登录失败检测：可见错误提示 → 不保存 Cookie，直接返回失败
+            error_text = await page.evaluate(
+                """() => {
+                    const els = document.querySelectorAll(
+                        '.error, .alert, [class*="error"], [role="alert"]'
+                    );
+                    for (const el of els) {
+                        if (el.offsetParent !== null &&
+                            /invalid|incorrect|wrong|失败|错误/i.test(el.textContent || '')) {
+                            return (el.textContent || '').trim().slice(0, 120);
+                        }
+                    }
+                    return null;
+                }"""
+            )
+            if error_text:
+                logger.warning("登录被拒: %s (%s)", platform, error_text)
+                return {"success": False, "error": f"登录被拒: {error_text}"}
 
             # 获取 Cookie
             cookies = await context.cookies()

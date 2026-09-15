@@ -1,0 +1,11 @@
+  [PASS    ] L0 crawl books.toscrape.com -- success=True strategy=scrapling probe_text=Y 101823B 2.3s
+  [PASS    ] L0 crawl example.com -- success=True strategy=scrapling probe_text=Y 1168B 1.0s
+  [PASS    ] L1 UA 伪装回显（httpbin） -- UA=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (
+  [PASS    ] L1 裸 httpx TLS 基线 -- ja3=004bf73563645cc1 user_agent=python-httpx/0.28.1
+  [PASS    ] L1 Scrapling TLS 指纹 -- ja3=909e9174c9a55b24 与裸 httpx 不同
+  [PASS    ] L2 JS 渲染站 quotes/js -- success=True strategy=scrapling quality=0.9375 einstein=Y
+  [PASS    ] L4 page/1 引文计数 -- quotes=10 strategy=scrapling
+  [PASS    ] L4 page/2 引文计数 -- quotes=10 strategy=scrapling
+  [PASS    ] L4 page/3 引文计数 -- quotes=10 strategy=scrapling
+  [PASS    ] L4 三页合计 -- total=30（期望 30）
+RESULT: all checks passed (PASS=10 DEGRADED=0 FAIL=0)

@@ -39,17 +39,12 @@ class ScraplingStrategy(BaseStrategy):
         self.extraction_mode = extraction_mode
 
     async def can_handle(self, probe: ProbeResult) -> bool:
-        """判断是否可处理
+        """判断是否可处理。
 
-        适用于:
-        - HTML 内容
-        - 非保护页面
+        HTML 页面均可处理：普通页面走 Fetcher；
+        保护页 / 挑战特征自动升级 StealthyFetcher（patchright 反检测浏览器）。
         """
-        if not probe.is_html:
-            return False
-        if probe.is_protected:
-            return False
-        return True
+        return bool(probe.is_html)
 
     async def execute(
         self,
@@ -62,18 +57,29 @@ class ScraplingStrategy(BaseStrategy):
         intent = intent or CrawlIntent()
 
         try:
-            from scrapling import Autodriver, Phantom
+            from scrapling.fetchers import Fetcher, StealthyFetcher
 
-            if self.browser or intent.intent_type == IntentType.DYNAMIC_CONTENT:
-                driver = Autodriver()
-                page = driver.load(url)
+            dynamic = self.browser or intent.intent_type == IntentType.DYNAMIC_CONTENT
+            used_stealth = dynamic
+            if dynamic:
+                # 动态内容 / 浏览器模式 → StealthyFetcher（patchright 反检测）
+                page = await asyncio.to_thread(
+                    StealthyFetcher.fetch, url, headless=True
+                )
             else:
-                page = Phantom.get(url)
+                page = await asyncio.to_thread(Fetcher.get, url)
+                # 挑战特征（CF / 403 / 验证页）→ 自动升级 StealthyFetcher
+                if self._looks_challenged(page):
+                    page = await asyncio.to_thread(
+                        StealthyFetcher.fetch, url, headless=True
+                    )
+                    used_stealth = True
 
             duration_ms = (time.time() - start_time) * 1000
 
-            content = page.html
-            title = page.title or ""
+            content = str(getattr(page, "html_content", "") or "")
+            title = getattr(page, "title", "") or ""
+            status = int(getattr(page, "status", 200) or 200)
 
             data: Dict[str, Any] = {
                 "url": url,
@@ -91,10 +97,11 @@ class ScraplingStrategy(BaseStrategy):
                 data=data,
                 content=content,
                 duration_ms=duration_ms,
-                status_code=200,
+                status_code=status,
                 metadata={
                     "title": title,
                     "extraction_mode": self.extraction_mode,
+                    "stealth": used_stealth,
                 },
             )
 
@@ -112,6 +119,22 @@ class ScraplingStrategy(BaseStrategy):
                 error=f"Scrapling error: {str(e)}",
                 duration_ms=(time.time() - start_time) * 1000,
             )
+
+    @staticmethod
+    def _looks_challenged(page) -> bool:
+        """检测反爬挑战特征（状态码 / 挑战页标记），命中则升级 StealthyFetcher。"""
+        status = int(getattr(page, "status", 200) or 200)
+        if status in (403, 429, 503):
+            return True
+        content = str(getattr(page, "html_content", "") or "")
+        markers = (
+            "cf-challenge",
+            "Just a moment",
+            "Checking your browser",
+            "challenge-platform",
+            "Attention Required",
+        )
+        return any(marker in content for marker in markers)
 
     def get_timeout(self) -> int:
         """获取超时时间"""

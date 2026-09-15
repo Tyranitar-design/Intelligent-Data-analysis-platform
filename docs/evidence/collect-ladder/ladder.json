@@ -1,0 +1,62 @@
+[
+  {
+    "layer": "L0",
+    "name": "crawl books.toscrape.com",
+    "status": "PASS",
+    "detail": "success=True strategy=scrapling probe_text=Y 101823B 2.3s"
+  },
+  {
+    "layer": "L0",
+    "name": "crawl example.com",
+    "status": "PASS",
+    "detail": "success=True strategy=scrapling probe_text=Y 1168B 1.0s"
+  },
+  {
+    "layer": "L1",
+    "name": "UA 伪装回显（httpbin）",
+    "status": "PASS",
+    "detail": "UA=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 ("
+  },
+  {
+    "layer": "L1",
+    "name": "裸 httpx TLS 基线",
+    "status": "PASS",
+    "detail": "ja3=004bf73563645cc1 user_agent=python-httpx/0.28.1"
+  },
+  {
+    "layer": "L1",
+    "name": "Scrapling TLS 指纹",
+    "status": "PASS",
+    "detail": "ja3=909e9174c9a55b24 与裸 httpx 不同"
+  },
+  {
+    "layer": "L2",
+    "name": "JS 渲染站 quotes/js",
+    "status": "PASS",
+    "detail": "success=True strategy=scrapling quality=0.9375 einstein=Y"
+  },
+  {
+    "layer": "L4",
+    "name": "page/1 引文计数",
+    "status": "PASS",
+    "detail": "quotes=10 strategy=scrapling"
+  },
+  {
+    "layer": "L4",
+    "name": "page/2 引文计数",
+    "status": "PASS",
+    "detail": "quotes=10 strategy=scrapling"
+  },
+  {
+    "layer": "L4",
+    "name": "page/3 引文计数",
+    "status": "PASS",
+    "detail": "quotes=10 strategy=scrapling"
+  },
+  {
+    "layer": "L4",
+    "name": "三页合计",
+    "status": "PASS",
+    "detail": "total=30（期望 30）"
+  }
+]

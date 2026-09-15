@@ -70,6 +70,14 @@ export default function DatasetsPage() {
     }
   }
 
+  // KPI 聚合（真实数据）
+  const totalRows = tables.reduce((sum, t) => sum + (Number(t.count) || 0), 0)
+  const avgColumns = tables.length
+    ? Math.round(
+        tables.reduce((sum, t) => sum + (t.columns?.length ?? 0), 0) / tables.length,
+      )
+    : 0
+
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <div className="flex items-center justify-between">
@@ -85,6 +93,44 @@ export default function DatasetsPage() {
           刷新
         </Button>
       </div>
+
+      {/* ---------------- KPI 读数行 ---------------- */}
+      <section className="grid gap-3 sm:grid-cols-3">
+        {[
+          {
+            label: '数据集',
+            value: String(tables.length),
+            hint: '已物化的结构化资产',
+            tone: '',
+          },
+          {
+            label: '总行数据',
+            value: totalRows.toLocaleString(),
+            hint: '全部数据集行数合计',
+            tone: 'text-primary',
+          },
+          {
+            label: '平均字段数',
+            value: String(avgColumns),
+            hint: '每个数据集的列数均值',
+            tone: '',
+          },
+        ].map((item, index) => (
+          <div
+            key={item.label}
+            className="panel animate-rise p-4"
+            style={{ ['--stagger' as string]: `${index * 60}ms` }}
+          >
+            <div className="label-xs mb-1.5">{item.label}</div>
+            <div className={cn('num text-[1.6rem] font-semibold leading-none', item.tone)}>
+              {item.value}
+            </div>
+            <div className="mt-2 truncate text-[0.68rem] text-muted-foreground">
+              {item.hint}
+            </div>
+          </div>
+        ))}
+      </section>
 
       {loading && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -213,6 +213,11 @@ export default function SchedulesPage() {
     }
   }
 
+  // KPI 聚合（真实数据）
+  const enabledCount = schedules.filter((item) => item.enabled).length
+  const totalRuns = schedules.reduce((sum, item) => sum + (item.run_count ?? 0), 0)
+  const totalFails = schedules.reduce((sum, item) => sum + (item.fail_count ?? 0), 0)
+
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -240,6 +245,55 @@ export default function SchedulesPage() {
           {message}
         </div>
       )}
+
+      {/* ---------------- KPI 读数行 ---------------- */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            label: '调度规则',
+            value: String(schedules.length),
+            hint: '全部定时任务',
+            tone: '',
+          },
+          {
+            label: '启用中',
+            value: String(enabledCount),
+            hint: enabledCount ? '按计划自动运行' : '当前全部暂停',
+            tone: 'text-primary',
+          },
+          {
+            label: '累计执行',
+            value: totalRuns.toLocaleString(),
+            hint: '所有规则的运行总次数',
+            tone: '',
+          },
+          {
+            label: '失败',
+            value: String(totalFails),
+            hint: totalFails > 0 ? '需要检查的目标' : '全部成功',
+            tone: totalFails > 0 ? 'text-[hsl(0_74%_62%)]' : '',
+          },
+        ].map((item, index) => (
+          <div
+            key={item.label}
+            className="panel animate-rise p-4"
+            style={{ ['--stagger' as string]: `${index * 60}ms` }}
+          >
+            <div className="label-xs mb-1.5">{item.label}</div>
+            <div
+              className={cn(
+                'num text-[1.6rem] font-semibold leading-none',
+                item.tone,
+              )}
+            >
+              {item.value}
+            </div>
+            <div className="mt-2 truncate text-[0.68rem] text-muted-foreground">
+              {item.hint}
+            </div>
+          </div>
+        ))}
+      </section>
 
       {/* ---------------- 新建表单 ---------------- */}
       {showForm && (

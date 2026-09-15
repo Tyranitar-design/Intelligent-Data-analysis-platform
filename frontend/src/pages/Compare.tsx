@@ -202,15 +202,18 @@ export default function ComparePage() {
                   <span className="section-title">行数差</span>
                   <span
                     className={cn(
-                      'badge-dot',
                       diff.row_delta === 0
-                        ? 'badge-info'
+                        ? 'chip'
                         : diff.row_delta > 0
-                          ? 'badge-ok'
-                          : 'badge-warn',
+                          ? 'delta-up'
+                          : 'delta-down',
                     )}
                   >
-                    {diff.row_delta > 0 ? `+${diff.row_delta}` : diff.row_delta}
+                    {diff.row_delta > 0
+                      ? `↑ +${diff.row_delta}`
+                      : diff.row_delta < 0
+                        ? `↓ ${diff.row_delta}`
+                        : '持平'}
                   </span>
                 </div>
                 <SummaryCard title="B · 对照" side={diff.b} />

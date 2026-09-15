@@ -1,0 +1,20 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    /  --  平台概览
+  OK    /discover  --  站点分析
+  OK    /sites  --  站点库
+  OK    /collect  --  采集任务
+  OK    /collect/3  --  执行管道
+  OK    /schedules  --  调度中心
+  OK    /datasets  --  数据集
+  OK    /datasets/2  --  字段概览
+  OK    /compare  --  对比分析
+  OK    /analytics  --  数据分析
+  OK    /reports  --  分析报告
+  OK    /compliance  --  合规中心
+  OK    /audit  --  审计日志
+  OK    /monitor  --  运行监视
+  OK    /integrations  --  接入管理
+  OK    /showcase  --  数据在此流动
+  OK    no console errors across tour  --  0: []
+RESULT: all checks passed

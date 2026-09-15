@@ -1,12 +1,16 @@
 /**
- * 站点分析
- * ========
+ * 站点分析（v4 · 对标 DataHarbor 目标图）
+ * ================================
  *
  * 输入一个 URL，产出站点画像与四维合规判定。
  *
- * 页面组织按"信息在决策中的顺序"排布：
- *   先给结论（判定）→ 再给依据（四维）→ 再给可操作项（字段与策略）。
- * 反过来先铺一堆技术细节，用户还得自己找结论。
+ * v4 布局（目标图校准）：
+ *   目标行（域名 + 状态 + 时间戳 + 重新探测）
+ *   → 三栏（检测置信度圆弧 + 结构强度 / 字段覆盖矩阵 + TOP8 / 速率基线 + 能力链）
+ *   → 字段样本预览 + 合规判定。
+ *
+ * 数据真实性纪律：圆弧 / 矩阵 / 强度条 / 速率全部来自接口实值，
+ * 无历史采样的面板不做假曲线。
  */
 import { useState } from 'react'
 import { motion } from 'motion/react'
@@ -18,6 +22,7 @@ import {
   Layers,
   Loader2,
   Radar,
+  RefreshCw,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -111,6 +116,7 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalyzeResponse | null>(null)
+  const [analyzedAt, setAnalyzedAt] = useState('')
 
   async function analyze(force = false) {
     const target = url.trim()
@@ -126,6 +132,17 @@ export default function DiscoverPage() {
         force_refresh: force,
       })
       setResult(data)
+      setAnalyzedAt(
+        new Date().toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }),
+      )
     } catch (err) {
       const detail =
         (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
@@ -200,15 +217,61 @@ export default function DiscoverPage() {
       {/* ---- 空态 ---- */}
       {!result && !loading && <EmptyState />}
 
-      {/* ---- 结果 ---- */}
+      {/* ---- 结果（v4 布局） ---- */}
       {result && (
         <div className="space-y-5">
-          <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-            <SiteCard profile={result.profile} notes={result.notes} cached={result.cached} />
+          {/* 目标行 */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="panel flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <Globe2 className="h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="num truncate text-[1.05rem] font-semibold">
+                    {result.profile.domain}
+                  </h2>
+                  <span className={cn('badge-dot', DECISION_META[result.compliance.decision]?.cls ?? 'badge-info')}>
+                    {DECISION_META[result.compliance.decision]?.label ?? '已探测'}
+                  </span>
+                  {result.cached && <span className="chip">命中缓存</span>}
+                </div>
+                <p className="mt-0.5 text-[0.72rem] text-muted-foreground">
+                  字段 {result.profile.fields.length} 个 · 页面分析 {result.fetch_count} 次 ·{' '}
+                  <span className="num">{analyzedAt}</span>
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void analyze(true)}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              重新探测
+            </Button>
+          </motion.div>
+
+          {/* 三栏：置信度 / 字段矩阵 / 速率基线 */}
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.15fr_0.85fr]">
+            <ConfidenceCard profile={result.profile} fetchCount={result.fetch_count} />
+            <FieldsMatrixCard fields={result.profile.fields} />
+            <RateCard profile={result.profile} />
+          </div>
+
+          {/* 字段样本预览 + 合规判定 */}
+          <div className="grid items-start gap-4 lg:grid-cols-[1.25fr_1fr]">
+            <FieldsPreview fields={result.profile.fields} />
             <ComplianceCard compliance={result.compliance} />
           </div>
-          <FieldsCard fields={result.profile.fields} />
-          <StrategyCard profile={result.profile} />
         </div>
       )}
     </div>
@@ -216,129 +279,361 @@ export default function DiscoverPage() {
 }
 
 // --------------------------------------------------------------------------- //
-// 子组件
+// v4 子组件
 // --------------------------------------------------------------------------- //
 
-function EmptyState() {
-  const steps = [
-    { icon: Globe2, title: '探测结构', desc: 'robots、Sitemap、RSS、结构化数据' },
-    { icon: Layers, title: '识别字段', desc: '列表与详情模式、字段覆盖率' },
-    { icon: ShieldCheck, title: '合规判定', desc: '可访问性 × 授权 × 行为 × 数据' },
-    { icon: Sparkles, title: '生成方案', desc: '能力链、频率、增量策略' },
-  ]
-  return (
-    <motion.section
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.15, duration: 0.4 }}
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-    >
-      {steps.map((step, index) => (
-        <div
-          key={step.title}
-          className="glass glass-hover animate-rise rounded-xl p-4"
-          style={{ ['--stagger' as string]: `${index * 70}ms` }}
-        >
-          <step.icon className="mb-2.5 h-4 w-4 text-primary" />
-          <div className="text-[0.83rem] font-medium">{step.title}</div>
-          <div className="mt-0.5 text-[0.72rem] leading-relaxed text-muted-foreground">
-            {step.desc}
-          </div>
-        </div>
-      ))}
-    </motion.section>
-  )
-}
-
-function SiteCard({
+/** 检测置信度：圆弧仪表盘 + 指标列 + 结构识别强度 */
+function ConfidenceCard({
   profile,
-  notes,
-  cached,
+  fetchCount,
 }: {
   profile: ProfileBlock
-  notes: string[]
-  cached: boolean
+  fetchCount: number
 }) {
-  const site = profile.site ?? {}
   const structure = profile.structure ?? {}
-  const tech = (site.tech_stack as string[]) ?? []
+  const access = profile.access ?? {}
+  const pct = Math.max(0, Math.min(1, profile.confidence ?? 0))
+
+  const pagination = structure.pagination as { mode?: string; param?: string } | undefined
+  const structuredKinds = (structure.structured_data_kinds as string[]) ?? []
+
+  const rows: { label: string; value: string; level: 1 | 2 | 3 }[] = [
+    {
+      label: '列表结构',
+      value: String(structure.list_pattern || '未识别'),
+      level: structure.list_pattern ? (String(structure.list_pattern).includes(':') ? 3 : 2) : 1,
+    },
+    {
+      label: '分页方式',
+      value: pagination?.mode && pagination.mode !== 'none'
+        ? `${pagination.mode}${pagination.param ? ` · ${pagination.param}` : ''}`
+        : '未识别',
+      level: pagination?.mode && pagination.mode !== 'none' ? (pagination.param ? 3 : 2) : 1,
+    },
+    {
+      label: '结构化数据',
+      value: structuredKinds.length ? structuredKinds.join(' · ') : '无',
+      level: structuredKinds.length >= 2 ? 3 : structuredKinds.length === 1 ? 2 : 1,
+    },
+    {
+      label: '站点通道',
+      value:
+        [access.sitemaps ? 'Sitemap' : null, access.feeds ? 'RSS' : null]
+          .filter(Boolean)
+          .join(' · ') || '无',
+      level: (access.sitemaps ? 1 : 0) + (access.feeds ? 1 : 0) >= 2 ? 3 : access.sitemaps || access.feeds ? 2 : 1,
+    },
+  ]
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="glass rounded-xl p-5"
+      className="panel p-5"
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Globe2 className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">站点画像</h3>
-        </div>
-        {cached && <span className="badge-dot badge-info">命中缓存</span>}
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">检测置信度</h3>
+        <span className="chip">{pct >= 0.8 ? '高置信' : pct >= 0.6 ? '中置信' : '低置信'}</span>
       </div>
 
-      <div className="mb-4 space-y-1">
-        <div className="truncate text-base font-medium">
-          {(site.title as string) || profile.domain}
+      <div className="flex items-center gap-5">
+        <Gauge value={pct} />
+        <div className="min-w-0 flex-1 space-y-2 text-xs">
+          <MiniRow label="页面分析数" value={String(fetchCount)} />
+          <MiniRow label="平均字段覆盖" value={fmtPercent(profile.coverage)} />
+          <MiniRow label="URL 模式" value={profile.url_pattern} />
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="mono-tag">{profile.domain}</span>
-          {Boolean(site.type) && (
-            <span className="badge-dot badge-info">{String(site.type)}</span>
+      </div>
+
+      <div className="mt-5 space-y-2.5">
+        <div className="label-xs">结构识别结果</div>
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between gap-3">
+            <span className="shrink-0 text-xs text-muted-foreground">{row.label}</span>
+            <span className="num min-w-0 truncate text-xs">{row.value}</span>
+            <StrengthBars level={row.level} />
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+/** 270° 圆弧仪表盘（SVG） */
+function Gauge({ value }: { value: number }) {
+  const R = 62
+  const CIRC = 2 * Math.PI * R
+  const ARC = CIRC * 0.75
+  const fill = ARC * value
+  const percent = Math.round(value * 100)
+
+  return (
+    <div className="relative h-[132px] w-[132px] shrink-0">
+      <svg viewBox="0 0 160 160" className="h-full w-full">
+        <circle
+          cx="80"
+          cy="80"
+          r={R}
+          fill="none"
+          stroke="hsl(var(--surface-3))"
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={`${ARC} ${CIRC}`}
+          transform="rotate(135 80 80)"
+        />
+        <motion.circle
+          cx="80"
+          cy="80"
+          r={R}
+          fill="none"
+          stroke="hsl(var(--primary))"
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={`${fill} ${CIRC}`}
+          transform="rotate(135 80 80)"
+          initial={{ strokeDasharray: `0 ${CIRC}` }}
+          animate={{ strokeDasharray: `${fill} ${CIRC}` }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="num text-[1.65rem] font-semibold leading-none">{percent}%</span>
+        <span className="mt-1 text-[0.6rem] text-muted-foreground">confidence</span>
+      </div>
+    </div>
+  )
+}
+
+/** 三格强度条 */
+function StrengthBars({ level }: { level: 1 | 2 | 3 }) {
+  return (
+    <span className="flex shrink-0 gap-[3px]">
+      {[1, 2, 3].map((index) => (
+        <span
+          key={index}
+          className={cn(
+            'h-3 w-[5px] rounded-[2px]',
+            index <= level ? 'bg-primary' : 'bg-primary/15',
           )}
-          {Boolean(site.lang) && <span className="mono-tag">{String(site.lang)}</span>}
+        />
+      ))}
+    </span>
+  )
+}
+
+/** 字段覆盖矩阵 + TOP8 */
+function FieldsMatrixCard({ fields }: { fields: FieldSpec[] }) {
+  const rows = [...(fields ?? [])].slice(0, 10)
+  const top = [...(fields ?? [])].sort((a, b) => (b.coverage ?? 0) - (a.coverage ?? 0)).slice(0, 8)
+  const COLS = 10
+
+  const cellTone = (coverage: number) =>
+    coverage >= 0.8
+      ? 'bg-primary'
+      : coverage >= 0.5
+        ? 'bg-primary/65'
+        : coverage >= 0.2
+          ? 'bg-primary/30'
+          : 'bg-primary/12'
+
+  if (!rows.length) {
+    return (
+      <div className="panel flex items-center justify-center p-5 text-sm text-muted-foreground">
+        未识别到可采字段
+      </div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.05 }}
+      className="panel p-5"
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">字段覆盖矩阵</h3>
+        <span className="text-[0.66rem] text-muted-foreground">
+          共识别 {fields.length} 个字段 · 格子点亮比例 = 覆盖率
+        </span>
+      </div>
+
+      <div className="flex gap-5">
+        {/* 矩阵 */}
+        <div className="min-w-0 flex-1 space-y-[5px]">
+          {rows.map((field) => {
+            const lit = Math.round(Math.max(0, Math.min(1, field.coverage ?? 0)) * COLS)
+            return (
+              <div key={field.name} className="flex items-center gap-2" title={`${field.name} · ${fmtPercent(field.coverage)}`}>
+                <span className="w-[68px] shrink-0 truncate text-right text-[0.66rem] text-muted-foreground">
+                  {field.name}
+                </span>
+                <div className="flex flex-1 gap-[3px]">
+                  {Array.from({ length: COLS }).map((_, index) => (
+                    <span
+                      key={index}
+                      className={cn(
+                        'h-[13px] flex-1 rounded-[2px]',
+                        index < lit ? cellTone(field.coverage ?? 0) : 'bg-muted/60',
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-3 text-xs">
-        <Metric label="探测置信度" value={fmtPercent(profile.confidence)} bar={profile.confidence} />
-        <Metric label="字段覆盖率" value={fmtPercent(profile.coverage)} bar={profile.coverage} />
-      </div>
-
-      <div className="mt-4 space-y-2">
-        <Row label="列表结构" value={String(structure.list_pattern || '未识别')} mono />
-        <Row
-          label="分页方式"
-          value={
-            (structure.pagination as { mode?: string })?.mode
-              ? `${(structure.pagination as { mode?: string }).mode}${
-                  (structure.pagination as { param?: string })?.param
-                    ? ` · ${(structure.pagination as { param?: string }).param}`
-                    : ''
-                }`
-              : '未识别'
-          }
-        />
-        <Row
-          label="结构化通道"
-          value={[
-            structure.has_sitemap ? 'Sitemap' : null,
-            structure.has_rss ? 'RSS' : null,
-          ]
-            .filter(Boolean)
-            .join(' · ') || '无'}
-        />
-        {tech.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {tech.map((t) => (
-              <span key={t} className="mono-tag">
-                {t}
-              </span>
+        {/* TOP8 */}
+        <div className="w-[150px] shrink-0">
+          <div className="label-xs mb-2">覆盖率 TOP 8</div>
+          <div className="space-y-1.5">
+            {top.map((field) => (
+              <div key={field.name}>
+                <div className="flex items-center justify-between text-[0.64rem]">
+                  <span className="truncate">{field.name}</span>
+                  <span className="num text-muted-foreground">{fmtPercent(field.coverage)}</span>
+                </div>
+                <div className="bar-track mt-0.5" style={{ height: 4 }}>
+                  <motion.div
+                    className="bar-fill"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.round((field.coverage ?? 0) * 100)}%` }}
+                    transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+              </div>
             ))}
           </div>
-        )}
+        </div>
       </div>
 
-      {notes.length > 0 && (
-        <ul className="mt-4 space-y-1 border-t border-border/60 pt-3">
-          {notes.map((note) => (
-            <li key={note} className="text-[0.72rem] leading-relaxed text-muted-foreground">
-              · {note}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border/60 pt-3 text-[0.62rem] text-muted-foreground">
+        {[
+          { tone: 'bg-primary', label: '≥ 80%' },
+          { tone: 'bg-primary/65', label: '50 – 80%' },
+          { tone: 'bg-primary/30', label: '20 – 50%' },
+          { tone: 'bg-primary/12', label: '< 20%' },
+        ].map((item) => (
+          <span key={item.label} className="flex items-center gap-1.5">
+            <span className={cn('h-2.5 w-2.5 rounded-[2px]', item.tone)} />
+            {item.label}
+          </span>
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+/** 速率基线 + 能力链 */
+function RateCard({ profile }: { profile: ProfileBlock }) {
+  const strategy = profile.strategy ?? {}
+  const chain = (strategy.chain as string[]) ?? []
+  const rate = (strategy.rate as Record<string, unknown>) ?? {}
+  const base = Number(rate.base_per_second ?? 1)
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.1 }}
+      className="panel flex flex-col p-5"
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">请求速率基线</h3>
+        <span className="chip chip-active">自适应</span>
+      </div>
+
+      <div className="flex items-end gap-2">
+        <span className="num text-[2.1rem] font-semibold leading-none text-primary">
+          {base.toFixed(1)}
+        </span>
+        <span className="mb-0.5 text-xs text-muted-foreground">req/s</span>
+      </div>
+
+      <div className="mt-4 space-y-2.5 text-xs">
+        <MiniRow label="速率来源" value={String(rate.source ?? '默认基线')} />
+        <MiniRow
+          label="建议速率"
+          value={`${Number(rate.min_per_second ?? 0.1).toFixed(1)} – ${base.toFixed(1)} req/s`}
+        />
+        <MiniRow
+          label="域名并发"
+          value={String(rate.max_concurrency_per_domain ?? '—')}
+        />
+      </div>
+
+      <div className="mt-5 border-t border-border/60 pt-3.5">
+        <div className="label-xs mb-2">能力链（失败自动降级）</div>
+        {chain.length === 0 ? (
+          <span className="text-xs text-muted-foreground">无可用能力链</span>
+        ) : (
+          <ol className="space-y-1.5">
+            {chain.map((name, index) => (
+              <li key={name} className="flex items-center gap-2 text-xs">
+                <span className="num grid h-4 w-4 place-items-center rounded bg-primary/12 text-[0.58rem] text-primary">
+                  {index + 1}
+                </span>
+                <span className="truncate">{name}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+/** 字段样本预览（v4 精简表） */
+function FieldsPreview({ fields }: { fields: FieldSpec[] }) {
+  if (!fields?.length) {
+    return (
+      <div className="panel p-5 text-sm text-muted-foreground">未识别到可采字段。</div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.15 }}
+      className="panel overflow-hidden"
+    >
+      <div className="flex items-center gap-2 px-5 pb-2 pt-4">
+        <Layers className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold">字段样本预览</h3>
+        <span className="text-xs text-muted-foreground">{fields.length} 个字段</span>
+      </div>
+
+      <div className="max-h-[380px] overflow-auto">
+        <table className="w-full min-w-[680px] text-left text-xs">
+          <thead className="sticky top-0 bg-card">
+            <tr className="text-muted-foreground">
+              <th className="px-5 py-2 font-medium">字段</th>
+              <th className="px-3 py-2 font-medium">类型</th>
+              <th className="px-3 py-2 font-medium">覆盖</th>
+              <th className="px-5 py-2 font-medium">样本</th>
+            </tr>
+          </thead>
+          <tbody>
+            {fields.map((field) => (
+              <tr key={field.name} className="border-t border-border/40">
+                <td className="max-w-[160px] truncate px-5 py-2 font-medium" title={`${field.source}:${field.path}`}>
+                  {field.name}
+                </td>
+                <td className="px-3 py-2 text-muted-foreground">{field.type}</td>
+                <td className="px-3 py-2">
+                  <CoverageBar value={field.coverage} />
+                </td>
+                <td className="max-w-[260px] truncate px-5 py-2 text-muted-foreground">
+                  {field.sample == null ? '—' : String(field.sample)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </motion.div>
   )
 }
@@ -351,8 +646,8 @@ function ComplianceCard({ compliance }: { compliance: ComplianceBlock }) {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.06 }}
-      className="glass rounded-xl p-5"
+      transition={{ duration: 0.4, delay: 0.2 }}
+      className="panel p-5"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -423,137 +718,60 @@ function ComplianceCard({ compliance }: { compliance: ComplianceBlock }) {
   )
 }
 
-function FieldsCard({ fields }: { fields: FieldSpec[] }) {
-  if (!fields?.length) {
-    return (
-      <div className="glass rounded-xl p-5 text-sm text-muted-foreground">
-        未识别到可采字段。
-      </div>
-    )
-  }
-
+function EmptyState() {
+  const steps = [
+    { icon: Globe2, title: '探测结构', desc: 'robots、Sitemap、RSS、结构化数据' },
+    { icon: Layers, title: '识别字段', desc: '列表与详情模式、字段覆盖率' },
+    { icon: ShieldCheck, title: '合规判定', desc: '可访问性 × 授权 × 行为 × 数据' },
+    { icon: Sparkles, title: '生成方案', desc: '能力链、频率、增量策略' },
+  ]
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.12 }}
-      className="glass overflow-hidden rounded-xl"
+    <motion.section
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.15, duration: 0.4 }}
+      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
     >
-      <div className="flex items-center gap-2 border-b border-border/60 px-5 py-3.5">
-        <Layers className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">可采字段</h3>
-        <span className="text-xs text-muted-foreground">{fields.length} 个</span>
-      </div>
-
-      <div className="max-h-[420px] overflow-auto">
-        <table className="w-full min-w-[720px] text-left text-xs">
-          <thead className="sticky top-0 bg-card">
-            <tr className="text-muted-foreground">
-              <th className="px-5 py-2 font-medium">字段</th>
-              <th className="px-3 py-2 font-medium">来源</th>
-              <th className="px-3 py-2 font-medium">类型</th>
-              <th className="px-3 py-2 font-medium">覆盖率</th>
-              <th className="px-5 py-2 font-medium">样本</th>
-            </tr>
-          </thead>
-          <tbody>
-            {fields.map((field) => (
-              <tr key={field.name} className="border-t border-border/40">
-                <td className="px-5 py-2 font-medium">{field.name}</td>
-                <td className="px-3 py-2">
-                  <span className="mono-tag">{field.source}</span>
-                </td>
-                <td className="px-3 py-2 text-muted-foreground">{field.type}</td>
-                <td className="px-3 py-2">
-                  <CoverageBar value={field.coverage} />
-                </td>
-                <td className="max-w-[280px] truncate px-5 py-2 text-muted-foreground">
-                  {field.sample == null ? '—' : String(field.sample)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </motion.div>
+      {steps.map((step, index) => (
+        <div
+          key={step.title}
+          className="panel animate-rise p-4"
+          style={{ ['--stagger' as string]: `${index * 70}ms` }}
+        >
+          <step.icon className="mb-2.5 h-4 w-4 text-primary" />
+          <div className="text-[0.83rem] font-medium">{step.title}</div>
+          <div className="mt-0.5 text-[0.72rem] leading-relaxed text-muted-foreground">
+            {step.desc}
+          </div>
+        </div>
+      ))}
+    </motion.section>
   )
 }
 
-function StrategyCard({ profile }: { profile: ProfileBlock }) {
-  const strategy = profile.strategy ?? {}
-  const chain = (strategy.chain as string[]) ?? []
-  const rate = (strategy.rate as Record<string, unknown>) ?? {}
+// --------------------------------------------------------------------------- //
+// 辅助
+// --------------------------------------------------------------------------- //
 
+function MiniRow({ label, value }: { label: string; value: string }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.18 }}
-      className="glass rounded-xl p-5"
-    >
-      <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">推荐采集策略</h3>
-      </div>
-
-      <div className="section-title mb-2">能力链（按适配度排序，失败自动降级）</div>
-      <div className="mb-4 flex flex-wrap items-center gap-1.5">
-        {chain.length === 0 && (
-          <span className="text-xs text-muted-foreground">无可用能力链</span>
-        )}
-        {chain.map((name, index) => (
-          <span key={name} className="flex items-center gap-1.5">
-            {index > 0 && <span className="text-muted-foreground">→</span>}
-            <span className="mono-tag">{name}</span>
-          </span>
-        ))}
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Row label="基准速率" value={`${rate.base_per_second ?? '—'} 次/秒`} />
-        <Row label="速率来源" value={String(rate.source ?? '默认')} />
-        <Row label="域名并发" value={String(rate.max_concurrency_per_domain ?? '—')} />
-      </div>
-    </motion.div>
-  )
-}
-
-function Metric({ label, value, bar }: { label: string; value: string; bar: number }) {
-  return (
-    <div>
-      <div className="section-title">{label}</div>
-      <div className="mt-1 text-sm font-medium">{value}</div>
-      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-        <motion.div
-          className="h-full rounded-full bg-primary"
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.min(100, Math.max(0, bar * 100))}%` }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </div>
+    <div className="flex items-center justify-between gap-3">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="num truncate" title={value}>
+        {value}
+      </span>
     </div>
   )
 }
 
 function CoverageBar({ value }: { value: number }) {
   const percent = Math.round((value ?? 0) * 100)
-  const tone =
-    percent >= 80 ? 'bg-emerald-500' : percent >= 40 ? 'bg-primary' : 'bg-amber-500'
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1 w-16 overflow-hidden rounded-full bg-muted">
-        <div className={cn('h-full rounded-full', tone)} style={{ width: `${percent}%` }} />
+      <div className="bar-track w-16">
+        <div className="bar-fill" style={{ width: `${percent}%` }} />
       </div>
-      <span className="tabular-nums text-muted-foreground">{percent}%</span>
-    </div>
-  )
-}
-
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-xs">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className={cn('truncate', mono && 'mono-tag')}>{value}</span>
+      <span className="num text-muted-foreground">{percent}%</span>
     </div>
   )
 }

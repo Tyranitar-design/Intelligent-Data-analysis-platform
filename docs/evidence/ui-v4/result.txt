@@ -1,0 +1,7 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    v4 components rendered (gauge + matrix + rate)  --  
+  OK    structure rows rendered  --  
+  OK    collect v4 renders (kpi + pipeline + activity)  --  
+  OK    no console errors  --  0: []
+RESULT: all checks passed

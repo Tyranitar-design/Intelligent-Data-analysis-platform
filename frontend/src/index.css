@@ -53,7 +53,7 @@
     --card-foreground: 210 26% 94%;
     --popover: 222 28% 8%;
     --popover-foreground: 210 26% 94%;
-    --primary: 172 62% 54%;
+    --primary: 188 84% 56%;
     --primary-foreground: 222 45% 6%;
     --secondary: 222 20% 13%;
     --secondary-foreground: 210 24% 90%;
@@ -68,7 +68,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 219 22% 14%;
     --input: 219 22% 14%;
-    --ring: 172 62% 54%;
+    --ring: 188 84% 56%;
 
     /* v3 表面明度阶梯：容器退后、内容上前，替代"边框发光"的分层做法 */
     --surface-1: 222 30% 6%;
@@ -412,12 +412,12 @@
   .panel {
     background: hsl(var(--surface-1));
     border: 1px solid hsl(var(--hairline) / 0.9);
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
   }
   .panel-2 {
     background: hsl(var(--surface-2));
     border: 1px solid hsl(var(--hairline) / 0.9);
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
   }
 
   /* 等宽数字：所有指标数字统一用它，保证列对齐与"仪器感" */
@@ -484,6 +484,63 @@
   }
   .hairline-t {
     border-top: 1px solid hsl(var(--hairline) / 0.9);
+  }
+
+  /* ---- v4 标志组件（2026-09-15 · 目标图校准） ---- */
+
+  /* delta 徽章：↑ +12.6% / ↓ -2.1% */
+  .delta-up {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    color: hsl(158 74% 60%);
+    background: hsl(158 74% 60% / 0.12);
+  }
+  .delta-down {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    color: hsl(0 74% 64%);
+    background: hsl(0 74% 64% / 0.12);
+  }
+
+  /* 进度条：任务表 / 管道用 */
+  .bar-track {
+    height: 5px;
+    border-radius: 999px;
+    background: hsl(var(--surface-3));
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: hsl(var(--primary));
+  }
+
+  /* 小标签 chip（筛选 / 元信息） */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--hairline) / 0.9);
+    color: hsl(var(--muted-foreground));
+  }
+  .chip-active {
+    color: hsl(var(--primary));
+    border-color: hsl(var(--primary) / 0.4);
+    background: hsl(var(--primary) / 0.08);
+    font-weight: 500;
   }
 }
 

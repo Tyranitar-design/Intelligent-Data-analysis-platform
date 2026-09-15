@@ -80,14 +80,14 @@ export default function ShowcasePage() {
           className="absolute inset-0 opacity-80"
           style={{
             backgroundImage: [
-              'radial-gradient(1.6px 1.6px at 18% 26%, hsl(172 62% 72% / 0.9), transparent 62%)',
-              'radial-gradient(1.2px 1.2px at 72% 18%, hsl(172 62% 72% / 0.7), transparent 62%)',
+              'radial-gradient(1.6px 1.6px at 18% 26%, hsl(188 84% 72% / 0.9), transparent 62%)',
+              'radial-gradient(1.2px 1.2px at 72% 18%, hsl(188 84% 72% / 0.7), transparent 62%)',
               'radial-gradient(1.8px 1.8px at 62% 68%, hsl(38 88% 62% / 0.8), transparent 62%)',
-              'radial-gradient(1.1px 1.1px at 30% 74%, hsl(172 62% 72% / 0.6), transparent 62%)',
+              'radial-gradient(1.1px 1.1px at 30% 74%, hsl(188 84% 72% / 0.6), transparent 62%)',
               'radial-gradient(1.4px 1.4px at 84% 48%, hsl(210 90% 66% / 0.7), transparent 62%)',
-              'radial-gradient(1px 1px at 44% 42%, hsl(172 62% 72% / 0.5), transparent 62%)',
+              'radial-gradient(1px 1px at 44% 42%, hsl(188 84% 72% / 0.5), transparent 62%)',
               'radial-gradient(1.3px 1.3px at 10% 58%, hsl(210 90% 66% / 0.6), transparent 62%)',
-              'radial-gradient(1.1px 1.1px at 90% 80%, hsl(172 62% 72% / 0.5), transparent 62%)',
+              'radial-gradient(1.1px 1.1px at 90% 80%, hsl(188 84% 72% / 0.5), transparent 62%)',
             ].join(', '),
           }}
         />

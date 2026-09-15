@@ -404,7 +404,9 @@ def list_datasets(
         .scalars()
         .all()
     )
+    total = db.execute(select(func.count()).select_from(Dataset)).scalar_one()
     return {
+        "total": total,
         "items": [
             {
                 "dataset_id": row.id,

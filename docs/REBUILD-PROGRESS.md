@@ -1774,3 +1774,38 @@ P9 至此全部收官（P9a 检索对比 / P9b 审计点+版本+保留 / D4 检�
 ### P12 状态
 
 F5 星云 / F6 `/showcase`（L3 阶段完成）+ **F7 演示资产（本阶段）** → **P12 收官**。
+
+## 阶段 验收收尾 · 5.1-8 移动端 + 5.1-2/9 预算守护（v5 验收 9/9）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`c8e30e8`（mobile）· `eb9cc08`（perf）
+
+### 5.1-8 · 移动端 375px 门禁（提交 `c8e30e8`）
+
+- `backend/scripts/verify_mobile_375.py`：10 页 × 375×812 **零横向溢出**（scrollWidth==375 全数）+ 抽屉导航可用 + reduced-motion 两页正常渲染
+- 结果 **13/13**；证据 `docs/evidence/mobile-375/`
+
+### 5.1-2/9 · 首屏预算修复 + 依赖预算表（提交 `eb9cc08`）
+
+- **真实发现**（建档过程中的硬证据）：`dist/index.html` 曾 `modulepreload` `chart-vendor`（echarts 194.5KB gzip）→ 首屏实际 **≈431KB**，超 300KB 红线
+- **根因**：`vite.config.ts` 的 `manualChunks` 强制拆分 echarts + `App.tsx` 静态 import Analytics → echarts 进入口依赖图
+- **修复**：
+  1. `Analytics` 改 `React.lazy` + `Suspense`（路由级懒加载）
+  2. 移除 chart-vendor 强制拆分 —— echarts 唯一使用方是 Analytics，随 lazy chunk 自然拆分即最优
+- **修复后首屏**：**228.7KB gzip**（index 128.6 + react-vendor 52.4 + motion-vendor 30.9 + css 16.8）✓ ≤300KB
+- `verify_perf_budget.py`：**8/8**（preload 清单干净 + 真实首屏请求序列无 chart-vendor/nebula-scene + `/analytics` 按需加载 + 零 JS 异常）
+- `docs/DEPENDENCY-BUDGET.md` 建档：预算红线 / 首屏明细 / 按需 chunk / 修复记录 / 前后端依赖清单 / 新增依赖准入规则 / 复查命令
+
+### v5 §5.1 验收终盘：**9/9 全绿**
+
+| # | 验收项 | 证据 |
+|---|--------|------|
+| 1 | reduced-motion 无必要动效 | F1 守护 + mobile-375 复验 |
+| 2 | 首屏 ≤300KB；星云不在首屏 | `verify_perf_budget.py` 8/8（228.7KB） |
+| 3 | L2/L3 动效触发证据 | `docs/evidence/` 各阶段截图组 |
+| 4 | 演示脚本可复现 | `scripts/demo.ps1` 实跑（200/200 → Stop 归零） |
+| 5 | README 首屏 GIF/架构图/徽章 | `README.md` + 4.14MB GIF |
+| 6 | 合规中心可视化矩阵 | `Compliance.tsx` A×B 矩阵 + 四维取证 |
+| 7 | 管道动画真实数据 | UI-v4 Collect（数据真实性纪律） |
+| 8 | 移动端 375px 不溢出 | `verify_mobile_375.py` 13/13 |
+| 9 | 依赖预算准入 | `docs/DEPENDENCY-BUDGET.md` + perf 门禁 |

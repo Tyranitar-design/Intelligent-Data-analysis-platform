@@ -2019,3 +2019,41 @@ D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
 - 代理池实测需真实代理资源（代码就绪）
 - camoufox 浏览器按需 fetch
 - （不确定项）reCAPTCHA 音频挑战——单来源未交叉验证
+
+## 阶段 Collect-Forge-6 · B站适配器 + 京东/淘宝合规探测
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`2919729`
+
+### 交付
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| **B站适配器** | `crawlers/adapters/bilibili.py` | 热门 / 详情（公开接口）+ 搜索（**wbi 签名**）；注册进 AdapterRegistry（category=video）；实弹 3/3 |
+| **robots 伪装检测修复** | `crawlers/robots_checker.py` | **发现**：京东把 robots.txt 伪装成首页 HTML（185KB）→ 静默"default 允许"掩盖风险；**修复**：HTML 内容检测 → `source="invalid"` + 强警告（保守默认 + 要求人工确认） |
+| 合规探测门禁 | `scripts/verify_robots_compliance.py` | 6 目标判定 + **不可采零请求纪律**（统计断言） |
+| 测试 | **+6（231 passed）** | adapter 3（实弹）+ robots invalid 3（mock） |
+
+### 京东 / 淘宝 / B站 合规实测结论（如实记录）
+
+| 目标 | 判定 | 依据 |
+|---|---|---|
+| 对照·练习站 | 允许 | default（校准通过） |
+| B站·视频页 | 允许 | robots.txt 真实规则（仅禁 2 路径：`/medialist/detail/`、`/index.html`） |
+| 京东·首页 | **invalid（robots 被伪装）** | robots.txt 请求 → 返回首页 HTML 185KB |
+| 京东·商品页 | default（无法验证） | item.jd.com 域 robots 不可得 |
+| 淘宝·首页 | 允许 | `Allow: /$` |
+| 淘宝·商品页 | **阻断** | `Disallow: /*?*`（带参数 URL 全禁）——**零请求** |
+
+**纪律执行**：`probed=5 / skipped=1`（不可采目标零请求，统计断言通过）。
+
+### 合规知识（写进项目结论）
+
+- **淘宝**：robots 明确只允许首页与无参数 list 页；商品详情（带 `?` 参数）**明确禁止** → 平台判定阻断，不对商品页采集。
+- **京东**：robots.txt 被风控伪装（对非浏览器 UA 重定向首页）→ 无法合规验证 → 标记 invalid；**不视为"允许"**（人工确认前不采）。
+- **B站**：robots 宽松 → 视频页合规可采；公开 API + wbi 签名链路就绪（适配器实弹通过）。
+
+### 说明
+
+- 京东站点级的进一步采集（如明确授权场景）需人工确认边界后再推进；
+- 全球站点（外网 / 强反爬）为下一阶段方向（用户规划）。

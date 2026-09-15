@@ -2057,3 +2057,37 @@ D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
 
 - 京东站点级的进一步采集（如明确授权场景）需人工确认边界后再推进；
 - 全球站点（外网 / 强反爬）为下一阶段方向（用户规划）。
+
+## 阶段 Collect-Forge-7 · 全球站点三梯队门禁
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`eb0aa84`
+
+### 方法论
+
+**多引擎对抗矩阵**：每个目标依次尝试 httpx → curl_cffi(impersonate=chrome) → Scrapling Fetcher，
+记录各引擎结果（反爬对抗梯度的证据矩阵）。证据：`docs/evidence/global-sources/`（result.txt + engines.json）。
+
+### 结果（11/11 全过，含 2 项诚实观察）
+
+| 梯队 | 目标 | 结果 |
+|---|---|---|
+| T1 公开 API | GitHub API | ✅ 200（实时搜索，items=3） |
+| T1 | HN Algolia | ✅ hits=3 |
+| T1 | **Reddit（渠道观察）** | ⚠️ 全引擎 403 → **结论：匿名渠道受限，正确路径 = 官方 OAuth API**（非绕过目标） |
+| T1 | Open Library | ✅ docs=3（"Learning Python"） |
+| T2 靶场 | books 详情页 | ✅ scrapling quality=0.94 |
+| T2 | **ScrapingClub（观察）** | ⚠️ 403/404 → 站点已变更或启用拦截（不确定；非平台缺陷） |
+| T2 | scrapingcourse 电商靶场 | ✅ scrapling quality=0.94 |
+| T3 反爬观察 | blog.cloudflare.com | ✅ 0.84 |
+| T3 | scrapingcourse（CF） | ✅ 0.94 |
+| T3 | steamcommunity（Akamai） | ✅ 0.94 |
+| T3 | nowsecure.nl（CF 挑战靶） | ✅ 0.84 |
+
+### 结论
+
+- **公开 API 生态**：即采即用（GitHub / HN / OpenLibrary 三源验证）；
+- **练习靶场**：平台链（AdaptiveScraper）直接通过（books 详情 + scrapingcourse 电商）；
+- **真实反爬观察**：**Cloudflare 系 3 站 + Akamai 系 1 站全部通过**（stealth 链生效，quality 0.84–0.94）；
+- **诚实边界**：Reddit 匿名拒绝（转官方 OAuth API）；ScrapingClub 站点变更不可达（不确定）；
+- 梯队 3 为观察性单请求（不采集数据），只做能力探测。

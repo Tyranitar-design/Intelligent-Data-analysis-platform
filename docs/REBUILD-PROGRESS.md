@@ -1640,3 +1640,68 @@ RESULT: all checks passed
 
 - Showcase 星云（L3 展示岛）按独立预算运行，配色已 v3 化；
 - v2 残留扫描：全代码库 grep 荧光青 0 命中；`ParticleField.tsx` 组件保留（未引用）。
+
+## 阶段 UI-v4 · 目标图校准（亮青控制台双样板）
+
+状态：**已完成**
+开始：2026-09-15（前序会话 v3 否决后） | 完成：2026-09-15 | 提交：`ca88ecd`
+依据：`design/V4-DESIGN-LANGUAGE.md` + DataHarbor 对标双图（`design/refs/dashboard-concept.png` / `discover-concept.png`）
+
+背景：v3「精密工程极简」被用户否决（"与目标风格差距大"）；v4 校准为「亮青现代控制台」：
+- 主色 `--primary: 188 84% 56%`（#31d4ed 亮青）
+- 面板圆角 0.625rem、玻璃层次回归、数据可视化密度提升
+- 新增组件类：`.delta-up/.delta-down`（涨跌）、`.bar-track/.bar-fill`（进度条）、`.chip/.chip-active`（标签）
+
+### 交付
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| v4 tokens | `index.css` | 主色 / 圆角 / 组件类全套 |
+| 样板页 ×2 | `Discover.tsx` | 圆弧仪表盘 + 覆盖矩阵 + 速率条（6 项指标全绿） |
+|  | `Collect.tsx` | KPI 读数 + 管道流向 + 活动流 |
+| 设计规范 | `design/V4-DESIGN-LANGUAGE.md` | 数据真实性纪律（不造假曲线） |
+
+验收（实机门禁）：双样板渲染 + 指标读数 + 截图 → `docs/evidence/ui-v4/`
+
+## 阶段 UI-v4b · 全页推广
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`bd79e34`
+
+- Schedules / Datasets：KPI 读数行（新增统计卡）
+- Compare：delta chip（行数差改 chip 化表达）
+- 16 路由体检：18/18 通过（渲染 + 零 console 错误）
+- 证据：`docs/evidence/ui-v4/all-pages/`（16 张截图 + result.txt）
+
+## 阶段 P9b · 审计点补全 + 版本历史 + 保留报告（P9 第二刀）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`f832ae0`
+目标：补 v4 §4.9 审计点清单（P8 遗留）+ P9 剩余 D2 版本链、D3 保留策略。
+
+### 交付
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| 审计点 ×5 | `collect.py` / `analytics.py` / `schedule_runner.py` | `collect.run` / `collect.resume` / `dataset.materialize` / `export.dataset` / `collect.schedule_run`（含 denied 分支），principal=`web-console`/`scheduler` |
+| 版本历史端点 | `GET /collect/datasets/{id}/versions` | 零新表：`collect_job_id → plan_id → 同计划数据集序列`；非采集来源返回单元素 |
+| 版本卡 UI | `DatasetDetail.tsx` | v1/v2 版本链 + 当前标记 + 「对比 / 查看」跳转 |
+| 对比预选 | `Compare.tsx` | `?a=&b=` URL 参数 + 自动执行对比 |
+| 保留报告 | `GET /monitor/retention` | 4 类资产（条目 / 数据集 / 审计 / 合规判定）行数 + 最早 / 最新时间戳；只读不删除 |
+| 保留卡 UI | `Monitor.tsx` | 只读保留表 + 总行数 |
+| 测试 | `test_audit_points.py`（新）+ `test_dataset_search_diff.py` + `test_monitor_api.py` | +8 用例 |
+| 门禁 | `verify_p9b_audit_versions.py` | 实机 8/8 + 证据 `docs/evidence/p9b-audit-versions/` |
+
+### 验收（实机门禁 8/8 + 全量 172 passed）
+
+```
+OK  versions chain returns [1, 2]  --  ids=[1, 2] idx=1 plan=1
+OK  export wrote audit log  --  ('web-console', 'export.dataset', 'ok', '2', '{"format": "csv", ...}')
+OK  retention has 4 assets + total  --  total=19 ds=2
+OK  dataset detail shows version card / compare auto-runs / monitor retention card
+RESULT: all checks passed     （全量 pytest：172 passed）
+```
+
+### 遗留
+
+- P9 剩余：D4 检索深化（多关键字 / 全文索引 / 时间过滤）。

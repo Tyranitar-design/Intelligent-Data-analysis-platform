@@ -476,13 +476,21 @@ def list_datasets(
 @router.get("/datasets/{dataset_id}/search", summary="检索数据集内容")
 def search_dataset(
     dataset_id: int,
-    q: str | None = Query(None, description="关键字（LIKE 匹配；为空则全量分页）"),
+    q: str | None = Query(
+        None, description="关键字（空格分词，多词 AND；为空则全量分页）"
+    ),
     field: str | None = Query(None, description="限定字段（需在数据集 schema 内）"),
+    date_field: str | None = Query(
+        None,
+        description="时间过滤字段（需在数据集 schema 内，配合 date_from/date_to）",
+    ),
+    date_from: str | None = Query(None, description="起始日期 YYYY-MM-DD（含）"),
+    date_to: str | None = Query(None, description="结束日期 YYYY-MM-DD（含）"),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ) -> dict:
-    """在物化表上做关键字 / 字段检索。"""
+    """在物化表上做关键字（多词 AND）/ 字段 / 时间范围检索。"""
     from pipeline.storage import DatasetMaterializer
 
     if db.get(Dataset, dataset_id) is None:
@@ -491,7 +499,14 @@ def search_dataset(
     materializer = DatasetMaterializer(db)
     try:
         return materializer.search_dataset(
-            dataset_id, q=q, field=field, limit=limit, offset=offset
+            dataset_id,
+            q=q,
+            field=field,
+            date_field=date_field,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit,
+            offset=offset,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

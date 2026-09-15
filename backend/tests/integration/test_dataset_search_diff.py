@@ -249,3 +249,166 @@ def test_versions_missing_dataset_404(session):
     client = TestClient(app)
     resp = client.get("/api/v1/collect/datasets/999999/versions")
     assert resp.status_code == 404
+
+
+# --------------------------------------------------------------------------- #
+# D4 检索深化：多关键字（AND 分词）+ 时间范围过滤
+# --------------------------------------------------------------------------- #
+
+
+def test_search_multi_keyword_and(session):
+    dataset = _make_dataset(
+        session,
+        [
+            # 两词都有但非连续 —— 整串 LIKE 不命中、分词 AND 应命中
+            {"title": "beta 在前 alpha 在后", "note": "x"},
+            {"title": "alpha only", "note": "x"},
+            {"title": "beta only", "note": "x"},
+        ],
+        f"{PREFIX}-multi",
+    )
+    client = TestClient(app)
+
+    # 多词 = AND：只有同时含两词的行命中
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search", params={"q": "alpha beta"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["total"] == 1
+    assert "alpha" in resp.json()["rows"][0]["title"]
+
+    # 单词仍为 OR 语义（向后兼容）：alpha 命中 2 条
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search", params={"q": "alpha"}
+    )
+    assert resp.json()["total"] == 2
+
+
+def test_search_multi_keyword_scoped_field(session):
+    dataset = _make_dataset(
+        session,
+        [
+            # title 同时含两词（逆序 + 连字符分隔）
+            {"title": "beta-alpha 逆序", "note": "gamma"},
+            {"title": "alpha", "note": "beta"},
+        ],
+        f"{PREFIX}-multi-field",
+    )
+    client = TestClient(app)
+
+    # 限定 title：只有第一条 title 同时含 alpha + beta
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search",
+        params={"q": "alpha beta", "field": "title"},
+    )
+    assert resp.json()["total"] == 1
+    assert resp.json()["rows"][0]["title"] == "beta-alpha 逆序"
+
+
+def test_search_date_range(session):
+    dataset = _make_dataset(
+        session,
+        [
+            {"title": "a", "publish_date": "2026-08-31"},
+            {"title": "b", "publish_date": "2026-09-01"},
+            {"title": "c", "publish_date": "2026-09-15"},
+            {"title": "d", "publish_date": "2026-10-01"},
+            {"title": "e"},
+        ],
+        f"{PREFIX}-dates",
+    )
+    client = TestClient(app)
+
+    # 含当天边界：09-01 ~ 09-15 => b, c
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search",
+        params={
+            "date_field": "publish_date",
+            "date_from": "2026-09-01",
+            "date_to": "2026-09-15",
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["total"] == 2
+    assert {r["title"] for r in payload["rows"]} == {"b", "c"}
+
+    # 单侧下界
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search",
+        params={"date_field": "publish_date", "date_from": "2026-10-01"},
+    )
+    assert resp.json()["total"] == 1
+
+
+def test_search_date_range_with_timestamps(session):
+    """带时间部分的值按日期截断比较。"""
+    dataset = _make_dataset(
+        session,
+        [
+            {"title": "morning", "publish_date": "2026-09-01T08:30:00"},
+            {"title": "night", "publish_date": "2026-09-01T23:59:00"},
+            {"title": "next", "publish_date": "2026-09-02T00:00:01"},
+        ],
+        f"{PREFIX}-ts",
+    )
+    client = TestClient(app)
+
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search",
+        params={
+            "date_field": "publish_date",
+            "date_from": "2026-09-01",
+            "date_to": "2026-09-01",
+        },
+    )
+    assert resp.json()["total"] == 2  # morning + night
+
+
+def test_search_date_with_keyword_combined(session):
+    dataset = _make_dataset(
+        session,
+        [
+            {"title": "alpha", "publish_date": "2026-09-01"},
+            {"title": "alpha", "publish_date": "2026-08-01"},
+            {"title": "beta", "publish_date": "2026-09-02"},
+        ],
+        f"{PREFIX}-date-kw",
+    )
+    client = TestClient(app)
+
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search",
+        params={
+            "q": "alpha",
+            "date_field": "publish_date",
+            "date_from": "2026-09-01",
+        },
+    )
+    assert resp.json()["total"] == 1
+
+
+def test_search_date_param_validation(session):
+    dataset = _make_dataset(session, [{"title": "x"}], f"{PREFIX}-date-val")
+    client = TestClient(app)
+
+    # 日期字段不在 schema
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search",
+        params={"date_field": "nope", "date_from": "2026-01-01"},
+    )
+    assert resp.status_code == 400
+
+    # 有 date_from 但无 date_field
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search",
+        params={"date_from": "2026-01-01"},
+    )
+    assert resp.status_code == 400
+
+    # date_field 但无任何范围
+    resp = client.get(
+        f"/api/v1/collect/datasets/{dataset.id}/search",
+        params={"date_field": "title"},
+    )
+    assert resp.status_code == 400

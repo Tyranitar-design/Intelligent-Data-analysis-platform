@@ -362,14 +362,19 @@ class DatasetMaterializer:
         *,
         q: Optional[str] = None,
         field: Optional[str] = None,
+        date_field: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict:
-        """在物化表上做字段 / 关键字检索。
+        """在物化表上做字段 / 关键字 / 时间范围检索。
 
-        - ``field`` 为空：关键字在前 8 个字段内 OR 匹配；
-        - ``field`` 指定：仅在该字段内匹配；字段必须属于数据集 schema
-          （列名经白名单校验 + 双引号转义，值走参数绑定）。
+        - ``field`` 为空：关键字在前 8 个字段内匹配；指定时仅在该字段内；
+        - ``q`` 空格分词：多个词之间为 AND（每个词在目标字段内 OR 匹配）；
+        - ``date_field`` + ``date_from`` / ``date_to``（YYYY-MM-DD，含当天）：
+          按 SQLite ``date()`` 截断日期比较，值可携带时间部分；
+        - 字段均须属于数据集 schema（白名单 + 引号转义，值走参数绑定）。
         """
         dataset = self.session.get(Dataset, dataset_id)
         if dataset is None:
@@ -385,7 +390,13 @@ class DatasetMaterializer:
                 "total": 0,
                 "limit": limit,
                 "offset": offset,
-                "query": {"q": q, "field": field},
+                "query": {
+                    "q": q,
+                    "field": field,
+                    "date_field": date_field,
+                    "date_from": date_from,
+                    "date_to": date_to,
+                },
                 "missing_table": True,
             }
 
@@ -396,23 +407,49 @@ class DatasetMaterializer:
             if isinstance(meta, dict)
         }
 
-        where_sql = ""
+        where_parts: list[str] = []
         params: dict[str, Any] = {}
+
+        # ---- 关键字（空格分词，多词 AND） ----
+        field_column: Optional[str] = None
         if field is not None:
-            column = column_map.get(field)
-            if column is None:
+            field_column = column_map.get(field)
+            if field_column is None:
                 raise ValueError(f"字段不在数据集 schema 中: {field}")
-            if q:
-                where_sql = f"WHERE CAST({_quote(column)} AS TEXT) LIKE :q"
-                params["q"] = f"%{q}%"
-        elif q:
-            parts = []
-            for index, column in enumerate(list(column_map.values())[:8]):
-                key = f"q{index}"
-                parts.append(f"CAST({_quote(column)} AS TEXT) LIKE :{key}")
-                params[key] = f"%{q}%"
-            if parts:
-                where_sql = "WHERE (" + " OR ".join(parts) + ")"
+
+        keywords = [word for word in (q or "").split() if word][:6]
+        if keywords:
+            targets = (
+                [field_column]
+                if field_column is not None
+                else list(column_map.values())[:8]
+            )
+            for word_index, word in enumerate(keywords):
+                or_parts = []
+                for col_index, column in enumerate(targets):
+                    key = f"q{word_index}_{col_index}"
+                    or_parts.append(f"CAST({_quote(column)} AS TEXT) LIKE :{key}")
+                    params[key] = f"%{word}%"
+                where_parts.append("(" + " OR ".join(or_parts) + ")")
+
+        # ---- 时间范围（含当天；date() 截断以兼容带时间部分的值） ----
+        if date_field is not None:
+            date_column = column_map.get(date_field)
+            if date_column is None:
+                raise ValueError(f"日期字段不在数据集 schema 中: {date_field}")
+            if not (date_from or date_to):
+                raise ValueError("date_field 需要配合 date_from 或 date_to 使用")
+            date_expr = f"date(CAST({_quote(date_column)} AS TEXT))"
+            if date_from:
+                where_parts.append(f"{date_expr} >= :date_from")
+                params["date_from"] = date_from
+            if date_to:
+                where_parts.append(f"{date_expr} <= :date_to")
+                params["date_to"] = date_to
+        elif date_from or date_to:
+            raise ValueError("date_from / date_to 需要配合 date_field 使用")
+
+        where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
         conn = self.session.connection()
         total = conn.execute(
@@ -439,7 +476,13 @@ class DatasetMaterializer:
             "total": total,
             "limit": limit,
             "offset": offset,
-            "query": {"q": q, "field": field},
+            "query": {
+                "q": q,
+                "field": field,
+                "date_field": date_field,
+                "date_from": date_from,
+                "date_to": date_to,
+            },
         }
 
     def diff_datasets(self, a_id: int, b_id: int) -> dict:

@@ -11,6 +11,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowUpRight,
+  CalendarDays,
   Database,
   Download,
   GitBranch,
@@ -79,7 +80,13 @@ interface PreviewPayload {
   limit: number
   offset: number
   missing_table?: boolean
-  query?: { q: string | null; field: string | null }
+  query?: {
+    q: string | null
+    field: string | null
+    date_field?: string | null
+    date_from?: string | null
+    date_to?: string | null
+  }
 }
 
 interface DatasetVersion {
@@ -138,12 +145,25 @@ export default function DatasetDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [offset, setOffset] = useState(0)
 
-  // 检索（关键字 + 字段限域）
+  // 检索（关键字 + 字段限域 + 时间范围）
   const [queryText, setQueryText] = useState('')
   const [queryField, setQueryField] = useState<string>('__all__')
-  const [activeQuery, setActiveQuery] = useState<{ q: string; field: string | null }>({
+  const [showDateFilter, setShowDateFilter] = useState(false)
+  const [dateField, setDateField] = useState<string>('__none__')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [activeQuery, setActiveQuery] = useState<{
+    q: string
+    field: string | null
+    dateField: string | null
+    dateFrom: string | null
+    dateTo: string | null
+  }>({
     q: '',
     field: null,
+    dateField: null,
+    dateFrom: null,
+    dateTo: null,
   })
 
   const load = useCallback(async () => {
@@ -159,12 +179,21 @@ export default function DatasetDetailPage() {
         apiClient.get<PreviewPayload>(
           `/collect/datasets/${datasetId}/search`,
           {
-            params: {
-              limit: PAGE_SIZE,
-              offset,
-              ...(activeQuery.q ? { q: activeQuery.q } : {}),
-              ...(activeQuery.field ? { field: activeQuery.field } : {}),
-            },
+          params: {
+            limit: PAGE_SIZE,
+            offset,
+            ...(activeQuery.q ? { q: activeQuery.q } : {}),
+            ...(activeQuery.field ? { field: activeQuery.field } : {}),
+            ...(activeQuery.dateField
+              ? {
+                  date_field: activeQuery.dateField,
+                  ...(activeQuery.dateFrom
+                    ? { date_from: activeQuery.dateFrom }
+                    : {}),
+                  ...(activeQuery.dateTo ? { date_to: activeQuery.dateTo } : {}),
+                }
+              : {}),
+          },
           },
         ),
         apiClient
@@ -189,14 +218,26 @@ export default function DatasetDetailPage() {
     setActiveQuery({
       q: queryText.trim(),
       field: queryField === '__all__' ? null : queryField,
+      dateField: dateField === '__none__' ? null : dateField,
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
     })
   }
 
   function clearSearch() {
     setQueryText('')
     setQueryField('__all__')
+    setDateField('__none__')
+    setDateFrom('')
+    setDateTo('')
     setOffset(0)
-    setActiveQuery({ q: '', field: null })
+    setActiveQuery({
+      q: '',
+      field: null,
+      dateField: null,
+      dateFrom: null,
+      dateTo: null,
+    })
   }
 
   function download(format: 'csv' | 'json' | 'excel') {
@@ -534,14 +575,29 @@ export default function DatasetDetailPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') runSearch()
                 }}
-                placeholder="关键字检索（回车）"
-                className="h-8 w-56 text-xs"
+                placeholder="关键字（空格分词，多词 AND）"
+                className="h-8 w-60 text-xs"
               />
               <Button size="sm" className="h-8" onClick={runSearch}>
                 <Search className="mr-1 h-3.5 w-3.5" />
                 检索
               </Button>
-              {(activeQuery.q || activeQuery.field) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-8',
+                  showDateFilter && 'border-primary/50 text-primary',
+                )}
+                onClick={() => setShowDateFilter((v) => !v)}
+              >
+                <CalendarDays className="mr-1 h-3.5 w-3.5" />
+                时间过滤
+                {activeQuery.dateField && (
+                  <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                )}
+              </Button>
+              {(activeQuery.q || activeQuery.field || activeQuery.dateField) && (
                 <>
                   <Button variant="ghost" size="sm" className="h-8" onClick={clearSearch}>
                     <X className="mr-1 h-3.5 w-3.5" />
@@ -550,10 +606,54 @@ export default function DatasetDetailPage() {
                   <span className="text-[0.68rem] text-muted-foreground">
                     当前：{activeQuery.field ? `字段「${activeQuery.field}」` : '全字段'} ·{' '}
                     「{activeQuery.q || '—'}」
+                    {activeQuery.dateField && (
+                      <>
+                        {' '}
+                        · 时间「{activeQuery.dateFrom || '…'} ~{' '}
+                        {activeQuery.dateTo || '…'}」
+                      </>
+                    )}
                   </span>
                 </>
               )}
             </div>
+
+            {/* 时间过滤（展开行） */}
+            {showDateFilter && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Select value={dateField} onValueChange={setDateField}>
+                  <SelectTrigger className="h-8 w-40 text-xs">
+                    <SelectValue placeholder="日期字段" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="__none__">选择日期字段</SelectItem>
+                    {fieldNames.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-foreground"
+                  aria-label="起始日期"
+                />
+                <span className="text-xs text-muted-foreground">~</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-foreground"
+                  aria-label="结束日期"
+                />
+                <span className="text-[0.66rem] text-muted-foreground">
+                  含当天（按字段值截断日期比较）
+                </span>
+              </div>
+            )}
           </div>
 
           {data.rows.length === 0 ? (

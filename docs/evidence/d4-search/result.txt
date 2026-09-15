@@ -1,0 +1,11 @@
+  OK    backend ready  --  http://127.0.0.1:8000
+  OK    frontend ready  --  http://127.0.0.1:5174
+  OK    single keyword backward-compatible  --  total=1
+  OK    multi keyword AND (reversed order hits)  --  total=1 (整串实现应为 0)
+  OK    multi keyword requires all words  --  total=0
+  OK    date filter participates (non-date values excluded)  --  total=0 (过滤前为 1)
+  OK    date_from without date_field -> 400  --  status=400
+  OK    invalid date_field -> 400  --  status=400
+  OK    frontend multi-keyword search  --  
+  OK    frontend date filter applied  --  
+RESULT: all checks passed

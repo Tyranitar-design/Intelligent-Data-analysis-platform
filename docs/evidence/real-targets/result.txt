@@ -1,0 +1,6 @@
+  [OK  ] A 公开 API 直连（HN Algolia 实时数据） -- status=200 hits=5 first=Uv is the best thing to happen to the Python ecosy
+  [OK  ] B 金融数据（东方财富 · 贵州茅台 K线） -- success=True data=[{'date': '2026-09-09', 'open': 1305.01, 'close': 1290.88, 'high': 1309.3, 'low': 1286.68,
+  [OK  ] C 真实站 API 嗅探（scrapethissite AJAX） -- clicked=True captured=1 api_hits=1 films_rendered=0
+  [OK  ] C2 直连复现（免渲染取数） -- best=crapethissite.com/pages/ajax-javascript/?ajax=true&year=2015 rows=16
+  [OK  ] D 反爬挑战（CF nowsecure.nl · StealthyFetcher 链） -- strategy=scrapling quality=0.8374999999999999 err=None
+RESULT: all checks passed

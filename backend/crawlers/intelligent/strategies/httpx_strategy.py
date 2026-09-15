@@ -82,48 +82,39 @@ class HttpxStrategy(BaseStrategy):
         cookies = intent.cookies.copy() if intent.cookies else {}
 
         try:
-            client = await self._get_client()
-
-            response = await client.get(
-                url,
-                headers=headers,
-                cookies=cookies,
-                timeout=self.timeout,
+            status_code, content_type, text, payload, transport = await self._fetch(
+                url, headers, cookies
             )
 
             duration_ms = (time.time() - start_time) * 1000
 
-            if response.status_code == 200:
-                content_type = response.headers.get("content-type", "")
-
+            if status_code == 200:
                 if "application/json" in content_type:
-                    data = response.json()
                     return StrategyResult(
                         strategy_name=self.name,
                         success=True,
-                        data=data,
-                        content=response.text,
+                        data=payload,
+                        content=text,
                         duration_ms=duration_ms,
-                        status_code=response.status_code,
-                        metadata={"content_type": content_type},
+                        status_code=status_code,
+                        metadata={"content_type": content_type, "tls": transport},
                     )
-                else:
-                    return StrategyResult(
-                        strategy_name=self.name,
-                        success=True,
-                        content=response.text,
-                        duration_ms=duration_ms,
-                        status_code=response.status_code,
-                        metadata={"content_type": content_type},
-                    )
-            else:
                 return StrategyResult(
                     strategy_name=self.name,
-                    success=False,
-                    error=f"HTTP {response.status_code}",
+                    success=True,
+                    content=text,
                     duration_ms=duration_ms,
-                    status_code=response.status_code,
+                    status_code=status_code,
+                    metadata={"content_type": content_type, "tls": transport},
                 )
+            return StrategyResult(
+                strategy_name=self.name,
+                success=False,
+                error=f"HTTP {status_code}",
+                duration_ms=duration_ms,
+                status_code=status_code,
+                metadata={"tls": transport},
+            )
 
         except asyncio.TimeoutError:
             return StrategyResult(
@@ -146,6 +137,53 @@ class HttpxStrategy(BaseStrategy):
                 error=f"Unexpected error: {str(e)}",
                 duration_ms=(time.time() - start_time) * 1000,
             )
+
+    async def _fetch(self, url: str, headers: Dict[str, Any], cookies: Dict[str, Any]):
+        """直采实现：**curl_cffi（浏览器 TLS 指纹）优先**，httpx 兜底。
+
+        调研依据（多源）：裸 httpx 的 JA3 指纹会被反爬系统在握手阶段识别；
+        curl_cffi 的 ``impersonate="chrome"`` 复刻真实浏览器 TLS/HTTP2 指纹。
+        返回 ``(status_code, content_type, text, json_payload_or_None, transport)``。
+        """
+        try:
+            from curl_cffi.requests import AsyncSession  # noqa: PLC0415
+
+            async with AsyncSession() as client:
+                response = await client.get(
+                    url,
+                    headers=headers,
+                    cookies=cookies,
+                    impersonate="chrome",
+                    timeout=self.timeout,
+                    allow_redirects=self.follow_redirects,
+                )
+            text = response.text
+            content_type = response.headers.get("content-type", "")
+            payload = None
+            if "application/json" in content_type:
+                try:
+                    payload = response.json()
+                except Exception:  # noqa: BLE001
+                    payload = None
+            return response.status_code, content_type, text, payload, "curl_cffi:chrome"
+        except ImportError:
+            pass  # curl_cffi 未安装——走 httpx
+        except Exception:  # noqa: BLE001 - curl_cffi 网络异常降级 httpx 重试一次
+            pass
+
+        client = await self._get_client()
+        response = await client.get(
+            url, headers=headers, cookies=cookies, timeout=self.timeout
+        )
+        text = response.text
+        content_type = response.headers.get("content-type", "")
+        payload = None
+        if "application/json" in content_type:
+            try:
+                payload = response.json()
+            except Exception:  # noqa: BLE001
+                payload = None
+        return response.status_code, content_type, text, payload, "httpx"
 
     def get_timeout(self) -> int:
         """获取超时时间"""

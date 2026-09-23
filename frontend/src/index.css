@@ -563,6 +563,41 @@
     word-break: break-all;
   }
 
+  /* 控制台抬头扫描光（v5 高级动效点缀 · 复刻网站 boot-phase 美学）
+     零 JS、单伪元素 GPU 动画；reduced-motion 由全局守护禁用 */
+  .scan-sweep {
+    position: relative;
+    overflow: hidden;
+  }
+  .scan-sweep::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 38%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--primary) / 0.055),
+      transparent
+    );
+    transform: translateX(-120%);
+    animation: scan-sweep 8s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes scan-sweep {
+    0% {
+      transform: translateX(-120%);
+    }
+    50% {
+      transform: translateX(330%);
+    }
+    100% {
+      transform: translateX(330%);
+    }
+  }
+
   /* 进度条：任务表 / 管道用 */
   .bar-track {
     height: 5px;

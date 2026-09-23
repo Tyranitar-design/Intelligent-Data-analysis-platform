@@ -117,7 +117,7 @@ export default function DashboardPage() {
           v3 调整：原「营销式 hero」（大标语 + 副标题 + 三个 CTA）与参考图的设计意图冲突——
           参考图的抬头区只有「面包屑 + 状态读数 + 操作」，首屏主角应当是数据本身。
           此处把 hero 降级为控制台抬头，并补一条全部由真实接口驱动的状态条。 */}
-      <section className="panel px-5 py-4">
+      <section className="panel scan-sweep px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-[1.05rem] font-semibold leading-tight text-foreground">平台概览</h2>

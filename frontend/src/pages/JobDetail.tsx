@@ -22,6 +22,7 @@ import {
 import apiClient from '@/api/client'
 import CountUp from '@/components/motion/CountUp'
 import Reveal from '@/components/motion/Reveal'
+import { RingProgress } from '@/components/visual/MiniCharts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -349,6 +350,13 @@ export default function JobDetailPage() {
             label="质量分"
             value={<CountUp value={Math.round((job.quality_score ?? 0) * 100)} />}
             hint="完整度 × 有效占比（100 分制）"
+            ring={
+              <RingProgress
+                value={job.quality_score ?? 0}
+                label={`${Math.round((job.quality_score ?? 0) * 100)}`}
+                sub="质量"
+              />
+            }
           />
           <SummaryCell
             label="分片"
@@ -553,16 +561,22 @@ function SummaryCell({
   label,
   value,
   hint,
+  ring,
 }: {
   label: string
   value: React.ReactNode
   hint: string
+  /** 右侧环形进度（v5，传真实比例） */
+  ring?: React.ReactNode
 }) {
   return (
-    <div>
-      <div className="section-title mb-1">{label}</div>
-      <div className="text-xl font-semibold tracking-tight">{value}</div>
-      <div className="mt-0.5 truncate text-[0.66rem] text-muted-foreground">{hint}</div>
+    <div className="flex items-end justify-between gap-3">
+      <div className="min-w-0">
+        <div className="section-title mb-1">{label}</div>
+        <div className="text-xl font-semibold tracking-tight">{value}</div>
+        <div className="mt-0.5 truncate text-[0.66rem] text-muted-foreground">{hint}</div>
+      </div>
+      {ring && <div className="shrink-0">{ring}</div>}
     </div>
   )
 }

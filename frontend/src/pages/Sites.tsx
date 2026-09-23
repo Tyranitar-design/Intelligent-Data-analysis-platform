@@ -19,6 +19,7 @@ import {
 import apiClient from '@/api/client'
 import CountUp from '@/components/motion/CountUp'
 import Reveal from '@/components/motion/Reveal'
+import Tilt from '@/components/motion/Tilt'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -318,11 +319,12 @@ export default function SitesPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((profile, index) => (
             <Reveal key={profile.profile_id} delay={Math.min(index * 0.03, 0.3)}>
-              <button
-                type="button"
-                onClick={() => void openDetail(profile.profile_id)}
-                className="glass glass-hover w-full rounded-xl p-4 text-left"
-              >
+              <Tilt max={2}>
+                <button
+                  type="button"
+                  onClick={() => void openDetail(profile.profile_id)}
+                  className="glass glass-hover w-full rounded-xl p-4 text-left"
+                >
                 <div className="flex items-start justify-between gap-2">
                   <span className="truncate text-sm font-medium">{profile.domain}</span>
                   <span
@@ -355,7 +357,8 @@ export default function SitesPage() {
                     <span className="text-amber-500">建议重探测</span>
                   )}
                 </div>
-              </button>
+                </button>
+              </Tilt>
             </Reveal>
           ))}
         </div>

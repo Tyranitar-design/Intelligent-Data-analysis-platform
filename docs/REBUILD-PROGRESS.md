@@ -2238,3 +2238,32 @@ D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
 ### 说明
 
 - Datasets 卡片的"环/sparkline"深化**未做**：单数据集无天然比例/序列数据（不造假纪律）；版本徽章需逐卡拉取（成本考虑）——留作有数据源时的候选
+
+## 阶段 UI-v5 · 页面深化收尾 + 动效点缀（第五刀）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`bb42cfc`
+
+### A · 页面深化收尾
+
+| 页面 | 深化点 |
+|---|---|
+| **JobDetail** | `SummaryCell` 加 ring 槽 → **质量分环**（真实 quality_score 比例） |
+| 全站 | 全局层（微光 / pill / code-block / 渐变条 / 扫描光）已覆盖全部 16 路由 |
+
+### B · 动效点缀（结合复刻网站经验 · 性能预算内）
+
+| 项 | 实现 | 复刻来源 | 预算影响 |
+|---|---|---|---|
+| **Dashboard 抬头扫描光** | `.scan-sweep`（单伪元素 GPU 动画，8s 循环，零 JS） | 复刻项目 boot-phase 美学（hubtown/lusion 扫描线语言） | 0（纯 CSS） |
+| **Sites 卡片 Tilt 微倾斜** | `Tilt max={2}` 套用（鼠标跟随 ±2°） | lusion/hubtown 卡片微倾斜 | 0（既有组件） |
+| reduced-motion 守护 | 全局 `animation-duration: 0.01ms` 自动禁用 | F1 纪律 | — |
+
+### 验收
+
+- build 绿 + **16 路由体检全过**（零 console 错误）
+- 截图：Dashboard 扫描光帧 + pill/环/sparkline 全在线 → `docs/evidence/ui-v5/01-dashboard.png`
+
+### UI-v5 全系列收官（五刀 + 统一）
+
+全局层（`fd9fb7c`）→ 6 页 pill（`c3b6359`）→ 深化样板（`601f306`）→ 合并统一（`ab037d8`）→ 矩阵热力（`6626bbf`）→ **深化收尾+动效（`bb42cfc`）**

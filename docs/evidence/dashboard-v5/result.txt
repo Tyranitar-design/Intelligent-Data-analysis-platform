@@ -1,0 +1,5 @@
+  [OK  ] 页面渲染（平台概览） -- 
+  [OK  ] 环形进度（RingProgress） -- rings=2
+  [OK  ] 迷你曲线（Sparkline） -- sparks=2
+  [OK  ] 截图存证 -- dashboard-v5.png
+RESULT: all checks passed

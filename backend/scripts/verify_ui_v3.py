@@ -21,7 +21,7 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BACKEND_DIR.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
-EVIDENCE_DIR = PROJECT_ROOT / "docs" / "evidence" / "ui-v4" / "all-pages"
+EVIDENCE_DIR = PROJECT_ROOT / "docs" / "evidence" / "ui-v5" / "all-pages"
 
 API = "http://127.0.0.1:8000"
 FRONTEND = "http://127.0.0.1:5174"

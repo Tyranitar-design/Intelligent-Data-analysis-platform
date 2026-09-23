@@ -24,6 +24,7 @@ import apiClient from '@/api/client'
 import CountUp from '@/components/motion/CountUp'
 import Reveal from '@/components/motion/Reveal'
 import Tilt from '@/components/motion/Tilt'
+import { RingProgress, Sparkline } from '@/components/visual/MiniCharts'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/stores/appStore'
 import { cn } from '@/lib/utils'
@@ -46,13 +47,14 @@ interface OverviewPayload {
   tables?: TableRow[]
 }
 
+// v5：任务状态列用实底 pill（参考图统一语言）
 const STATUS_TONE: Record<string, string> = {
-  succeeded: 'badge-ok',
-  partial: 'badge-warn',
-  failed: 'badge-err',
-  running: 'badge-info',
-  waiting_human: 'badge-warn',
-  pending: 'badge-info',
+  succeeded: 'pill-ok',
+  partial: 'pill-warn',
+  failed: 'pill-err',
+  running: 'pill-info',
+  waiting_human: 'pill-warn',
+  pending: 'pill-info',
 }
 
 export default function DashboardPage() {
@@ -97,6 +99,17 @@ export default function DashboardPage() {
   const jobsSucceeded = jobs.filter((j) => j.status === 'succeeded').length
   const jobsFailed = jobs.filter((j) => j.status === 'failed').length
   const jobsItems = jobs.reduce((sum, j) => sum + (Number(j.items_count) || 0), 0)
+
+  // v5 迷你图表数据（全部真实；无序列则不渲染）
+  const datasetRatio =
+    (overview?.total_tables ?? 0) > 0
+      ? datasetTables.length / (overview?.total_tables ?? 1)
+      : 0
+  const jobsSuccessRate = jobs.length > 0 ? jobsSucceeded / jobs.length : 0
+  const tableRowSeries = (overview?.tables ?? [])
+    .map((t) => Number(t.count) || 0)
+    .slice(0, 16)
+  const jobItemsSeries = jobs.map((j) => Number(j.items_count) || 0)
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
@@ -173,6 +186,15 @@ export default function DashboardPage() {
           label="数据表"
           value={loading ? '—' : <CountUp value={overview?.total_tables ?? 0} />}
           hint={`其中 ${datasetTables.length} 张为采集数据集`}
+          ring={
+            <RingProgress
+              value={datasetRatio}
+              size={64}
+              stroke={6}
+              label={`${Math.round(datasetRatio * 100)}%`}
+              sub="数据集"
+            />
+          }
         />
         <StatCard
           index={1}
@@ -180,6 +202,7 @@ export default function DashboardPage() {
           label="入库记录"
           value={loading ? '—' : <CountUp value={totalRows} />}
           hint="全部数据表行数合计"
+          spark={<Sparkline data={tableRowSeries} />}
         />
         <StatCard
           index={2}
@@ -187,6 +210,14 @@ export default function DashboardPage() {
           label="采集任务"
           value={loading ? '—' : <CountUp value={jobs.length} />}
           hint="最近 6 条"
+          ring={
+            <RingProgress
+              value={jobsSuccessRate}
+              label={`${Math.round(jobsSuccessRate * 100)}%`}
+              sub="成功"
+            />
+          }
+          spark={<Sparkline data={jobItemsSeries} />}
         />
         <StatCard
           index={3}
@@ -241,8 +272,8 @@ export default function DashboardPage() {
                     <span className="mono-tag shrink-0">#{job.job_id}</span>
                     <span
                       className={cn(
-                        'badge-dot shrink-0',
-                        STATUS_TONE[job.status] ?? 'badge-info',
+                        'pill shrink-0',
+                        STATUS_TONE[job.status] ?? 'pill-info',
                       )}
                     >
                       {job.status}
@@ -340,6 +371,8 @@ function StatCard({
   value,
   hint,
   featured = false,
+  ring,
+  spark,
 }: {
   index: number
   icon: typeof Database
@@ -348,6 +381,10 @@ function StatCard({
   hint: string
   /** 主指标卡：更大字号与留白，用于建立 Bento 主次层级（v3） */
   featured?: boolean
+  /** 右侧环形进度（v5，传真实比例） */
+  ring?: ReactNode
+  /** 底部迷你曲线（v5，传真实序列） */
+  spark?: ReactNode
 }) {
   return (
     <div
@@ -362,22 +399,28 @@ function StatCard({
             strokeWidth={2}
           />
         </div>
-        <div
-          className={cn(
-            'num animate-value-pop font-semibold leading-none tracking-tight text-foreground',
-            featured ? 'text-[2.15rem]' : 'text-[1.5rem]',
-          )}
-        >
-          {value}
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div
+              className={cn(
+                'num animate-value-pop font-semibold leading-none tracking-tight text-foreground',
+                featured ? 'text-[2.15rem]' : 'text-[1.5rem]',
+              )}
+            >
+              {value}
+            </div>
+            <div
+              className={cn(
+                'mt-2 truncate text-muted-foreground',
+                featured ? 'text-[0.72rem]' : 'text-[0.7rem]',
+              )}
+            >
+              {hint}
+            </div>
+          </div>
+          {ring && <div className="shrink-0">{ring}</div>}
         </div>
-        <div
-          className={cn(
-            'mt-2 truncate text-muted-foreground',
-            featured ? 'text-[0.72rem]' : 'text-[0.7rem]',
-          )}
-        >
-          {hint}
-        </div>
+        {spark && <div className="mt-2.5">{spark}</div>}
       </Tilt>
     </div>
   )

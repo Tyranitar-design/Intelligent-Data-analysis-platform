@@ -123,6 +123,8 @@
   .glass {
     background: hsl(var(--surface-1));
     border: 1px solid hsl(var(--hairline) / 0.9);
+    /* v5：卡片顶部微光——实心表面的一层"受光"暗示（三张 v5 参考图一致的容器语言） */
+    box-shadow: inset 0 1px 0 0 hsl(var(--foreground) / 0.045);
   }
 
   /* 悬停时边框提亮为中性色（v2 的青色发光描边已取消——
@@ -413,11 +415,14 @@
     background: hsl(var(--surface-1));
     border: 1px solid hsl(var(--hairline) / 0.9);
     border-radius: 0.625rem;
+    /* v5：顶部微光（与 .glass 同一容器语言） */
+    box-shadow: inset 0 1px 0 0 hsl(var(--foreground) / 0.045);
   }
   .panel-2 {
     background: hsl(var(--surface-2));
     border: 1px solid hsl(var(--hairline) / 0.9);
     border-radius: 0.625rem;
+    box-shadow: inset 0 1px 0 0 hsl(var(--foreground) / 0.04);
   }
 
   /* 等宽数字：所有指标数字统一用它，保证列对齐与"仪器感" */
@@ -512,6 +517,49 @@
     background: hsl(0 74% 64% / 0.12);
   }
 
+  /* ---- v5 标志组件（2026-09-15 · 全页统一主题：三张参考图交叉提取） ---- */
+
+  /* 实底状态 pill：白字实底语义色（表格 / 列表状态列的统一语言） */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    line-height: 1;
+    padding: 0.28rem 0.62rem;
+    border-radius: 999px;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .pill-ok {
+    background: hsl(158 62% 38%);
+  }
+  .pill-warn {
+    background: hsl(38 90% 42%);
+  }
+  .pill-err {
+    background: hsl(0 70% 46%);
+  }
+  .pill-info {
+    background: hsl(199 78% 42%);
+  }
+
+  /* 证据代码块：JSON / 规则原文的等宽底衬（合规证据 / 血缘规则用） */
+  .code-block {
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.5rem;
+    background: hsl(var(--surface-2));
+    border: 1px solid hsl(var(--hairline) / 0.8);
+    color: hsl(var(--muted-foreground));
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
   /* 进度条：任务表 / 管道用 */
   .bar-track {
     height: 5px;
@@ -522,7 +570,12 @@
   .bar-fill {
     height: 100%;
     border-radius: 999px;
-    background: hsl(var(--primary));
+    /* v5：渐变填充（参考图的进度条语言） */
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary) / 0.55),
+      hsl(var(--primary))
+    );
   }
 
   /* 小标签 chip（筛选 / 元信息） */

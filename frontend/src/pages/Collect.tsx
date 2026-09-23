@@ -46,13 +46,14 @@ interface VerdictStats {
   by_decision: { proceed: number; confirm_required: number; blocked: number }
 }
 
+// v5：任务状态列用实底 pill（参考图统一语言）
 const STATUS_TONE: Record<string, string> = {
-  succeeded: 'badge-ok',
-  partial: 'badge-warn',
-  failed: 'badge-err',
-  running: 'badge-info',
-  waiting_human: 'badge-warn',
-  pending: 'badge-info',
+  succeeded: 'pill-ok',
+  partial: 'pill-warn',
+  failed: 'pill-err',
+  running: 'pill-info',
+  waiting_human: 'pill-warn',
+  pending: 'pill-info',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -274,8 +275,8 @@ export default function CollectPage() {
                         <td className="px-3 py-2.5">
                           <span
                             className={cn(
-                              'badge-dot',
-                              STATUS_TONE[job.status] ?? 'badge-info',
+                              'pill',
+                              STATUS_TONE[job.status] ?? 'pill-info',
                             )}
                           >
                             {STATUS_LABEL[job.status] ?? job.status}

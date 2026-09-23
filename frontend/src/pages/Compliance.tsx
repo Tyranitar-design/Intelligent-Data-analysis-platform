@@ -50,10 +50,11 @@ interface StatsPayload {
 const ACCESS_DIM = ['A1', 'A2', 'A3', 'A4']
 const AUTH_DIM = ['B1', 'B2', 'B3', 'B4', 'B5']
 
+// v5：判定列用实底 pill（参考图统一语言）
 const DECISION_TONE: Record<string, string> = {
-  proceed: 'badge-ok',
-  confirm_required: 'badge-warn',
-  blocked: 'badge-err',
+  proceed: 'pill-ok',
+  confirm_required: 'pill-warn',
+  blocked: 'pill-err',
 }
 
 const DECISION_LABEL: Record<string, string> = {
@@ -308,7 +309,7 @@ export default function CompliancePage() {
                     <span className="truncate text-sm font-medium">
                       {shortUrl(verdict.target_url)}
                     </span>
-                    <span className="badge-dot badge-warn">待确认</span>
+                    <span className="pill pill-warn">待确认</span>
                     <span className="mono-tag">
                       {verdict.dimensions.access}/{verdict.dimensions.authorization}
                     </span>
@@ -400,7 +401,7 @@ export default function CompliancePage() {
                 <span className="truncate text-sm font-medium">
                   {shortUrl(verdict.target_url)}
                 </span>
-                <span className="badge-dot badge-err">已阻断</span>
+                <span className="pill pill-err">已阻断</span>
                 <span className="mono-tag">
                   {verdict.dimensions.access}/{verdict.dimensions.authorization}
                 </span>
@@ -461,7 +462,7 @@ export default function CompliancePage() {
                   >
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span
-                        className={cn('badge-dot shrink-0', DECISION_TONE[verdict.decision])}
+                        className={cn('pill shrink-0', DECISION_TONE[verdict.decision])}
                       >
                         {DECISION_LABEL[verdict.decision]}
                       </span>

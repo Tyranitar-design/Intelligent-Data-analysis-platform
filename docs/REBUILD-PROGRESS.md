@@ -2126,3 +2126,34 @@ D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
 - **发现用户侧进行中工作**：`Monitor.tsx`（199 行升级）+ `components/visual/console.tsx`（StatusPill 等）——**未触碰、未提交**，待用户确认归属后统一
 - 逐页推广（第二刀）：Sites / Audit / JobDetail / Schedules / Integrations / Monitor 等页面 pill 应用与 v5 深化
 - 风格分歧点：用户 `StatusPill`（点式）vs 本轮 `.pill`（实底）——建议统一为实底（参考图语言）
+
+## 阶段 UI-v5 · 逐页推广（第二刀）
+
+状态：**已完成**（6 页）
+完成：2026-09-15 | 提交：`c3b6359`
+
+### 交付
+
+| 页面 | 升级 |
+|---|---|
+| Sites | 判定徽章（proceed/confirm/blocked）→ 实底 pill（卡片 + 抽屉两处） |
+| Audit | 结果列（ok/denied/error）→ pill |
+| JobDetail | 任务状态（6 态）+ 等待人工提示 → pill |
+| Discover | 判定徽章（3 态，结果区 + 报告区两处）→ pill |
+| Integrations | 在线/鉴权状态 + 结果列 → pill |
+| Schedules | 「已暂停」状态 → pill（频率标签保持 badge-dot——非状态语义） |
+
+### 语义判定规则（本轮确立）
+
+- **状态列 / 判定列 / 结果列** → 实底 `.pill`（参考图统一语言）
+- **频率标签 / 强度标签 / PII 标记 / 字段变化标签**（非状态语义）→ 保持 `badge-dot` / `chip`
+
+### 边界与回归
+
+- **Monitor 跳过**：用户侧进行中工作（199 行升级 + console.tsx），未触碰
+- 回归：build 绿 + **16 路由体检全过**（零 console 错误）
+
+### 剩余
+
+- Monitor / console.tsx 归属确认后的统一（用户 `StatusPill`（点式）vs 本轮 `.pill`（实底）——建议统一为实底）
+- 逐页深化（照 v5 参考图的表格 / 矩阵 / 详情页细化）——第三刀候选

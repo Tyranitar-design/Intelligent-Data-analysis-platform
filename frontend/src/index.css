@@ -544,6 +544,9 @@
   .pill-info {
     background: hsl(199 78% 42%);
   }
+  .pill-off {
+    background: hsl(var(--muted-foreground) / 0.55);
+  }
 
   /* 证据代码块：JSON / 规则原文的等宽底衬（合规证据 / 血缘规则用） */
   .code-block {

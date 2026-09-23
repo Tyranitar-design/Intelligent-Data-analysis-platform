@@ -67,28 +67,50 @@ export function Sparkline({
   data,
   width = 132,
   height = 26,
-  className,
+  className = 'text-primary',
 }: {
-  /** 真实数据序列（<2 个点不渲染） */
+  /** 真实数据序列（<2 个点时渲染虚线占位） */
   data: number[]
   width?: number
   height?: number
   className?: string
 }) {
   const gradientId = useId()
-  if (!data || data.length < 2) return null
+  if (!data || data.length < 2) {
+    return (
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width="100%"
+        height={height}
+        preserveAspectRatio="none"
+        className={className}
+        aria-hidden
+      >
+        <line
+          x1="0"
+          y1={height - 1}
+          x2={width}
+          y2={height - 1}
+          stroke="currentColor"
+          strokeOpacity="0.25"
+          strokeDasharray="2 3"
+        />
+      </svg>
+    )
+  }
   const min = Math.min(...data)
   const max = Math.max(...data)
   const span = max - min || 1
   const step = width / (data.length - 1)
   const points = data.map(
     (v, i) =>
-      [i * step, height - 3 - ((v - min) / span) * (height - 6)] as const,
+      [i * step, height - 2 - ((v - min) / span) * (height - 4)] as const,
   )
   const line = points
     .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`)
     .join(' ')
   const area = `${line} L${width.toFixed(1)},${height} L0,${height} Z`
+  const [lastX, lastY] = points[points.length - 1]
   return (
     <svg
       width="100%"
@@ -100,18 +122,19 @@ export function Sparkline({
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={area} fill={`url(#${gradientId})`} />
       <path
         d={line}
         fill="none"
+        stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"
-        className="stroke-primary/80"
       />
+      <circle cx={lastX} cy={lastY} r="1.8" fill="currentColor" />
     </svg>
   )
 }

@@ -7,8 +7,9 @@
  * 限速表展示的是"正在进行"的自适应状态——被 429/503 降速的域名会在这里
  * 显示当前速率与原基准的差距。
  */
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
+  Activity,
   Archive,
   Gauge,
   Loader2,
@@ -22,6 +23,7 @@ import apiClient from '@/api/client'
 import CountUp from '@/components/motion/CountUp'
 import Reveal from '@/components/motion/Reveal'
 import { Button } from '@/components/ui/button'
+import { DualStatBar, SectionHead, Sparkline, StatusStrip, StripItem } from '@/components/visual/console'
 import { cn } from '@/lib/utils'
 
 interface DomainRate {
@@ -108,6 +110,21 @@ export default function MonitorPage() {
   const [auto, setAuto] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
+  /* v3 NOC 走势：每次轮询把真实读数推进环形缓冲（最多 60 个采样点 ≈ 30 分钟）。
+     时序不是假数据——它就是本页轮询到的真实队列深度与限速域数的进程内历史。 */
+  const MAX_POINTS = 60
+  const queueHist = useRef<number[]>([])
+  const domainHist = useRef<number[]>([])
+  const [historyTick, setHistoryTick] = useState(0)
+
+  const pushSample = useCallback((s: MonitorStats) => {
+    const q = s.queue.pending_jobs + s.queue.running_jobs
+    const d = s.rate.tracked_domains
+    queueHist.current = [...queueHist.current, q].slice(-MAX_POINTS)
+    domainHist.current = [...domainHist.current, d].slice(-MAX_POINTS)
+    setHistoryTick((t) => t + 1) // 触发依赖历史数组的重渲染
+  }, [])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -118,6 +135,7 @@ export default function MonitorPage() {
           .catch(() => null),
       ])
       setStats(data)
+      pushSample(data)
       if (retentionResponse) setRetention(retentionResponse.data)
       setLastUpdated(new Date())
     } catch {
@@ -125,7 +143,7 @@ export default function MonitorPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pushSample])
 
   useEffect(() => {
     void load()
@@ -139,35 +157,130 @@ export default function MonitorPage() {
 
   const domains = Object.entries(stats?.rate.domains ?? {})
 
+  // 走势数据（historyTick 仅用于触发重渲染，读取走 ref）
+  void historyTick
+  const queueSeries = queueHist.current
+  const domainSeries = domainHist.current
+
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
-          平台健康度快照。限速为进程级共享状态——采集期间被降速的域名会实时反映在这里。
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setAuto((v) => !v)}
-            className={cn(
-              'rounded-lg border px-2.5 py-1 text-xs transition-colors',
-              auto
-                ? 'border-primary/50 bg-primary/10 font-medium text-primary'
-                : 'border-border/60 text-muted-foreground hover:text-foreground',
-            )}
-          >
-            自动刷新 {auto ? '开' : '关'}
-          </button>
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-            {loading ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            刷新
-          </Button>
+      {/* ---------------- 控制台抬头（v3）：标识 + 实时状态条 + 操作 ---------------- */}
+      <section className="panel px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-[1.05rem] font-semibold leading-tight text-foreground">运行监视</h2>
+            <p className="mt-1 text-[0.72rem] text-muted-foreground">
+              服务健康 · 任务队列 · 采集限速（进程级实时节奏）
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAuto((v) => !v)}
+              className={cn(
+                'rounded-lg border px-2.5 py-1 text-xs transition-colors',
+                auto
+                  ? 'border-primary/50 bg-primary/10 font-medium text-primary'
+                  : 'border-border/60 text-muted-foreground hover:text-foreground',
+              )}
+            >
+              自动刷新 {auto ? '开' : '关'}
+            </button>
+            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+              {loading ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              刷新
+            </Button>
+          </div>
         </div>
-      </div>
+
+        {/* 实时读数条：全部来自真实接口 */}
+        <StatusStrip className="hairline-t mt-3.5 pt-3">
+          <StripItem
+            label="服务"
+            value={stats ? '在线' : '—'}
+            tone={stats ? 'ok' : 'off'}
+          />
+          <StripItem label="版本" value={stats ? `v${stats.service.version}` : '—'} />
+          <StripItem label="队列深度" value={stats ? (stats.queue.pending_jobs + stats.queue.running_jobs) : '—'} />
+          <StripItem label="运行中" value={stats ? stats.queue.running_jobs : '—'} />
+          <StripItem
+            label="限速域"
+            value={stats ? stats.rate.throttled_domains.length : '—'}
+            tone={stats && stats.rate.throttled_domains.length > 0 ? 'warn' : undefined}
+          />
+          <StripItem label="跟踪域" value={stats ? stats.rate.tracked_domains : '—'} />
+          <span className="ml-auto flex items-center gap-1.5">
+            读取于
+            <span className="num font-medium text-foreground/90">
+              {lastUpdated ? lastUpdated.toLocaleTimeString('zh-CN', { hour12: false }) : '—'}
+            </span>
+          </span>
+        </StatusStrip>
+      </section>
+
+      {/* ---------------- 走势双卡（v3 NOC）：真实轮询采样积累 ---------------- */}
+      <section className="grid gap-3 lg:grid-cols-2">
+        <Reveal className="panel overflow-hidden">
+          <SectionHead
+            icon={<Activity className="h-4 w-4" />}
+            title="队列深度走势"
+            meta={`最近 ${queueSeries.length} 次采样`}
+            action={
+              <Sparkline data={queueSeries} width={120} height={32} className="text-primary" />
+            }
+          />
+          <div className="flex items-end justify-between gap-4 px-4 pb-4 pt-3">
+            <div>
+              <div className="label-xs">当前深度（排队 + 运行）</div>
+              <div className="num mt-1.5 text-[2rem] font-semibold leading-none text-foreground">
+                {stats ? stats.queue.pending_jobs + stats.queue.running_jobs : '—'}
+              </div>
+              <div className="mt-2 text-[0.7rem] text-muted-foreground">
+                {stats
+                  ? `排队 ${stats.queue.pending_jobs} · 运行 ${stats.queue.running_jobs} · 总任务 ${stats.queue.total_jobs}`
+                  : '—'}
+              </div>
+            </div>
+            <Sparkline data={queueSeries} width={220} height={64} className="text-primary" />
+          </div>
+        </Reveal>
+
+        <Reveal className="panel overflow-hidden">
+          <SectionHead
+            icon={<Gauge className="h-4 w-4" />}
+            title="限速域走势"
+            meta={`最近 ${domainSeries.length} 次采样`}
+            action={
+              <Sparkline data={domainSeries} width={120} height={32} className="text-primary" />
+            }
+          />
+          <div className="flex items-end justify-between gap-4 px-4 pb-4 pt-3">
+            <div>
+              <div className="label-xs">跟踪域名（进程级共享限速）</div>
+              <div className="num mt-1.5 text-[2rem] font-semibold leading-none text-foreground">
+                {stats ? stats.rate.tracked_domains : '—'}
+              </div>
+              <div
+                className={cn(
+                  'mt-2 text-[0.7rem]',
+                  stats && stats.rate.throttled_domains.length > 0 ? 'text-warn' : 'text-muted-foreground',
+                )}
+              >
+                {stats
+                  ? stats.rate.throttled_domains.length > 0
+                    ? `⚠ 限速中：${stats.rate.throttled_domains.slice(0, 3).join('、')}${stats.rate.throttled_domains.length > 3 ? ' 等' : ''}`
+                    : '全部域名节奏正常'
+                  : '—'}
+              </div>
+            </div>
+            <Sparkline data={domainSeries} width={220} height={64} className="text-primary" />
+          </div>
+        </Reveal>
+      </section>
 
       {/* ---------------- 四卡 ---------------- */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -226,6 +339,64 @@ export default function MonitorPage() {
           }
         />
       </section>
+
+      {/* ---------------- 域名限速 · Worker 卡矩阵（v3） ----------------
+          参考图的「Worker Nodes」在本平台的对应物就是采集域名：每个域名一张卡，
+          等宽主机名 + 速率对比条（当前 vs 基准）+ 状态点 + 请求数。数据全部真实。 */}
+      {domains.length > 0 && (
+        <section>
+          <SectionHead
+            icon={<ServerCog className="h-4 w-4" />}
+            title="采集通道"
+            meta={`${domains.length} 个域名`}
+            action={
+              <span className="label-xs">
+                {stats && stats.rate.throttled_domains.length > 0
+                  ? `${stats.rate.throttled_domains.length} 个限速中`
+                  : '全部正常'}
+              </span>
+            }
+          />
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {domains.slice(0, 12).map(([domain, snap]) => {
+              const throttled = snap.throttled
+              const ratio = snap.base_per_second > 0 ? snap.current_per_second / snap.base_per_second : 1
+              return (
+                <div key={domain} className="panel px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="num truncate text-[0.78rem] text-foreground/90" title={domain}>
+                      {domain}
+                    </span>
+                    <span className={cn('status-dot', throttled ? 'bg-amber-400' : 'bg-emerald-400')} aria-hidden="true" />
+                  </div>
+                  <div className="mt-2.5">
+                    <DualStatBar current={snap.current_per_second} base={snap.base_per_second} max={Math.max(snap.base_per_second, snap.current_per_second) || 1} />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[0.68rem] text-muted-foreground">
+                    <span className="num">
+                      {snap.current_per_second.toFixed(1)}/s
+                      <span className="ml-1 opacity-60">/ 基准 {snap.base_per_second.toFixed(1)}</span>
+                    </span>
+                    <span className={cn('num', throttled && 'text-amber-400')}>
+                      {snap.total_requests.toLocaleString()} 次
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[0.66rem] text-muted-foreground">
+                    <span>并发 {snap.max_concurrency}</span>
+                    <span>
+                      {throttled ? (
+                        <span className="text-amber-400">限速中 · 连续成功 {snap.success_streak}</span>
+                      ) : (
+                        <span>连续成功 {snap.success_streak}</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ---------------- 域名限速表 ---------------- */}
       <Reveal delay={0.1} className="glass overflow-hidden rounded-xl">

@@ -2189,3 +2189,27 @@ D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
 | 第三刀 | 深化样板（Collect KPI 环 + Audit code-block） | `601f306` |
 
 剩余：Monitor/console 归属确认后的统一；更多页面深化按需推广。
+
+## 阶段 UI-v5 · 合并统一（用户侧 Monitor/console 接入 v5 体系）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`ab037d8`（经用户确认"合并统一"）
+
+### 合并内容
+
+| 统一点 | 处理 | 依据 |
+|---|---|---|
+| `StatusPill`（点式边框） | → **实底 `.pill`**（保持组件 API——未来调用自动统一） | v5 参考图语言；Monitor 未直接使用（统一成本低） |
+| `Sparkline` 双实现 | → **归一 `MiniCharts.Sparkline`**（移植用户版优点：末端点 + 空态虚线占位；渐变 currentColor） | 消除重复实现 |
+| `.pill-off` | 新增（补全 Tone → pill 映射） | 完整性 |
+| `DualStatBar` / `SectionHead` / `StripItem` / `StatusStrip` | **保留**（unique 资产） | 无对应物 |
+
+### 验证
+
+- build 绿 + **16 路由体检全过**（Monitor 含用户侧代码**首次进体检** ✓ 零 console 错误）
+- 截图确认：实底"健康"徽章 / sparkline 空态占位 / 主题协调 → `docs/evidence/ui-v5/14-monitor.png`
+
+### 提交说明
+
+- `Monitor.tsx`（199 行用户侧升级）+ `console.tsx` **首次入库**（经用户"合并统一"确认授权）
+- 至此 v5 全体系收敛：全局层 + 11 页应用 + 深化样板 + 组件统一

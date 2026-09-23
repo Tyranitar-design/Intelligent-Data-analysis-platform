@@ -189,12 +189,20 @@ export default function DatasetsPage() {
                 </button>
                 <div className="flex items-center justify-between border-t border-border/50 px-4 py-2">
                   <span className="text-[0.66rem] text-muted-foreground">点击卡片预览</span>
-                  <Link
-                    to={`/datasets/${datasetId}`}
-                    className="inline-flex items-center gap-0.5 text-[0.7rem] text-primary hover:underline"
-                  >
-                    详情 <ArrowUpRight className="h-3 w-3" />
-                  </Link>
+                  <span className="flex items-center gap-3">
+                    <Link
+                      to={`/compare?a=${datasetId}`}
+                      className="inline-flex items-center gap-0.5 text-[0.7rem] text-muted-foreground hover:text-primary"
+                    >
+                      对比
+                    </Link>
+                    <Link
+                      to={`/datasets/${datasetId}`}
+                      className="inline-flex items-center gap-0.5 text-[0.7rem] text-primary hover:underline"
+                    >
+                      详情 <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                  </span>
                 </div>
               </motion.div>
             )

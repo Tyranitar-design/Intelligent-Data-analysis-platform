@@ -50,6 +50,30 @@ interface StatsPayload {
 const ACCESS_DIM = ['A1', 'A2', 'A3', 'A4']
 const AUTH_DIM = ['B1', 'B2', 'B3', 'B4', 'B5']
 
+/** v5 矩阵语义热力：含阻断→红 / 含待确认→黄 / 全放行→绿；深浅随数量。 */
+function cellHeat(
+  count: number,
+  max: number,
+  semantics?: { blocked: number; confirm: number; proceed: number },
+): string {
+  const intensity = 0.1 + 0.4 * (count / (max || 1))
+  if (semantics && semantics.blocked > 0) return `hsl(0 70% 46% / ${intensity})`
+  if (semantics && semantics.confirm > 0) return `hsl(38 90% 42% / ${intensity})`
+  if (semantics) return `hsl(158 62% 38% / ${intensity})`
+  return `hsl(var(--primary) / ${intensity})`
+}
+
+function cellTitle(
+  a: string,
+  b: string,
+  count: number,
+  semantics?: { blocked: number; confirm: number; proceed: number },
+): string {
+  const base = `${a} × ${b} · ${count} 条`
+  if (!semantics) return base
+  return `${base}（阻断 ${semantics.blocked} · 待确认 ${semantics.confirm} · 放行 ${semantics.proceed}）`
+}
+
 // v5：判定列用实底 pill（参考图统一语言）
 const DECISION_TONE: Record<string, string> = {
   proceed: 'pill-ok',
@@ -145,6 +169,19 @@ export default function CompliancePage() {
     const values = Object.values(gridCounts)
     return values.length ? Math.max(...values) : 1
   }, [gridCounts])
+
+  // v5：每格判定语义（红=含阻断 / 黄=含待确认 / 绿=全放行；无样本时回退单色热力）
+  const gridSemantics = useMemo(() => {
+    const map: Record<string, { blocked: number; confirm: number; proceed: number }> = {}
+    for (const v of verdicts) {
+      const key = `${v.dimensions.access}|${v.dimensions.authorization}`
+      const cell = (map[key] ??= { blocked: 0, confirm: 0, proceed: 0 })
+      if (v.decision === 'blocked') cell.blocked += 1
+      else if (v.decision === 'confirm_required') cell.confirm += 1
+      else cell.proceed += 1
+    }
+    return map
+  }, [verdicts])
 
   const pendingList = useMemo(
     () => verdicts.filter((v) => v.decision === 'confirm_required'),
@@ -243,8 +280,20 @@ export default function CompliancePage() {
       <Reveal delay={0.12} className="glass rounded-xl p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">可访问性 × 授权基础</h3>
-          <span className="text-[0.68rem] text-muted-foreground">
-            格子深浅 = 判定数量（点击下方列表查看取证）
+          <span className="flex flex-wrap items-center gap-3 text-[0.68rem] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: 'hsl(158 62% 38% / 0.55)' }} />
+              全放行
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: 'hsl(38 90% 42% / 0.55)' }} />
+              含待确认
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: 'hsl(0 70% 46% / 0.55)' }} />
+              含阻断
+            </span>
+            <span className="opacity-70">深浅 = 数量</span>
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -271,19 +320,21 @@ export default function CompliancePage() {
                           className={cn(
                             'grid h-9 place-items-center rounded-md border text-[0.72rem] tabular-nums transition-colors',
                             count > 0
-                              ? 'border-primary/30 text-foreground'
+                              ? 'border-border/60 text-foreground'
                               : 'border-border/40 text-muted-foreground/40',
                           )}
                           style={
                             count > 0
                               ? {
-                                  backgroundColor: `hsl(var(--primary) / ${
-                                    0.08 + 0.45 * (count / gridMax)
-                                  })`,
+                                  backgroundColor: cellHeat(
+                                    count,
+                                    gridMax,
+                                    gridSemantics[`${a}|${b}`],
+                                  ),
                                 }
                               : undefined
                           }
-                          title={`${a} × ${b} · ${count} 条`}
+                          title={cellTitle(a, b, count, gridSemantics[`${a}|${b}`])}
                         >
                           {count > 0 ? count : '·'}
                         </div>

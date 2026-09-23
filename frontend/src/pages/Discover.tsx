@@ -82,19 +82,19 @@ interface AnalyzeResponse {
 const DECISION_META = {
   proceed: {
     label: '可执行',
-    cls: 'badge-ok',
+    cls: 'pill-ok',
     icon: CheckCircle2,
     hint: '公开可访问且不存在技术隔离，可直接进入采集',
   },
   confirm_required: {
     label: '待确认',
-    cls: 'badge-warn',
+    cls: 'pill-warn',
     icon: AlertTriangle,
     hint: '需补齐授权声明后执行',
   },
   blocked: {
     label: '不可采',
-    cls: 'badge-err',
+    cls: 'pill-err',
     icon: XCircle,
     hint: '存在技术隔离或数据属性受限，请使用替代数据源',
   },
@@ -234,7 +234,7 @@ export default function DiscoverPage() {
                   <h2 className="num truncate text-[1.05rem] font-semibold">
                     {result.profile.domain}
                   </h2>
-                  <span className={cn('badge-dot', DECISION_META[result.compliance.decision]?.cls ?? 'badge-info')}>
+                  <span className={cn('pill', DECISION_META[result.compliance.decision]?.cls ?? 'pill-info')}>
                     {DECISION_META[result.compliance.decision]?.label ?? '已探测'}
                   </span>
                   {result.cached && <span className="chip">命中缓存</span>}
@@ -654,7 +654,7 @@ function ComplianceCard({ compliance }: { compliance: ComplianceBlock }) {
           <ShieldCheck className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold">合规判定</h3>
         </div>
-        <span className={cn('badge-dot', meta.cls)}>{meta.label}</span>
+        <span className={cn('pill', meta.cls)}>{meta.label}</span>
       </div>
 
       <div className="mb-4 flex items-start gap-2.5 rounded-lg bg-muted/40 px-3 py-2.5">

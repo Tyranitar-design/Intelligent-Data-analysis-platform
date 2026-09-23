@@ -417,7 +417,7 @@ export default function SchedulesPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold">{item.name}</span>
                       <span className="badge-dot badge-info">{item.frequency_text}</span>
-                      {!item.enabled && <span className="badge-dot badge-warn">已暂停</span>}
+                      {!item.enabled && <span className="pill pill-warn">已暂停</span>}
                     </div>
                     <div className="mt-1 truncate text-xs text-muted-foreground">
                       计划 #{item.plan_id}

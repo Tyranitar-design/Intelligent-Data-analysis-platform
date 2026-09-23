@@ -80,10 +80,11 @@ interface ProfileDetail {
   last_verified: string | null
 }
 
+// v5：判定列用实底 pill（参考图统一语言）
 const DECISION_TONE: Record<string, string> = {
-  proceed: 'badge-ok',
-  confirm_required: 'badge-warn',
-  blocked: 'badge-err',
+  proceed: 'pill-ok',
+  confirm_required: 'pill-warn',
+  blocked: 'pill-err',
 }
 
 const DECISION_LABEL: Record<string, string> = {
@@ -326,8 +327,8 @@ export default function SitesPage() {
                   <span className="truncate text-sm font-medium">{profile.domain}</span>
                   <span
                     className={cn(
-                      'badge-dot shrink-0',
-                      DECISION_TONE[profile.decision ?? ''] ?? 'badge-info',
+                      'pill shrink-0',
+                      DECISION_TONE[profile.decision ?? ''] ?? 'pill-info',
                     )}
                   >
                     {DECISION_LABEL[profile.decision ?? ''] ?? '未知'}
@@ -382,10 +383,10 @@ export default function SitesPage() {
                   <SheetTitle className="truncate">{detail.domain}</SheetTitle>
                   <span
                     className={cn(
-                      'badge-dot shrink-0',
+                      'pill shrink-0',
                       DECISION_TONE[
                         String((detail.compliance as { decision?: string }).decision ?? '')
-                      ] ?? 'badge-info',
+                      ] ?? 'pill-info',
                     )}
                   >
                     {DECISION_LABEL[

@@ -64,10 +64,11 @@ interface SelftestResult {
   auth_configured: boolean
 }
 
+// v5：结果列用实底 pill（参考图统一语言）
 const RESULT_TONE: Record<string, string> = {
-  ok: 'badge-ok',
-  denied: 'badge-err',
-  error: 'badge-err',
+  ok: 'pill-ok',
+  denied: 'pill-err',
+  error: 'pill-err',
 }
 
 /** 配置片段：token 用占位符——本页绝不显示 token 原文 */
@@ -183,11 +184,11 @@ export default function IntegrationsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Plug className="h-4 w-4 text-primary" />
               <span className="mono-tag">POST /mcp</span>
-              <span className="badge-dot badge-ok">在线</span>
+              <span className="pill pill-ok">在线</span>
               <span
                 className={cn(
-                  'badge-dot',
-                  info?.auth_configured ? 'badge-ok' : 'badge-warn',
+                  'pill',
+                  info?.auth_configured ? 'pill-ok' : 'pill-warn',
                 )}
               >
                 {info?.auth_configured ? '鉴权已配置' : '鉴权未配置'}
@@ -333,7 +334,7 @@ export default function IntegrationsPage() {
                       <span className="tabular-nums text-muted-foreground">
                         {formatDateTime(row.ts)}
                       </span>
-                      <span className={cn('badge-dot', RESULT_TONE[row.result] ?? 'badge-info')}>
+                      <span className={cn('pill', RESULT_TONE[row.result] ?? 'pill-info')}>
                         {row.result}
                       </span>
                     </div>

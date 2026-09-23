@@ -31,10 +31,11 @@ interface AuditItem {
   ip: string | null
 }
 
+// v5：结果列用实底 pill（参考图统一语言）
 const RESULT_TONE: Record<string, string> = {
-  ok: 'badge-ok',
-  denied: 'badge-err',
-  error: 'badge-err',
+  ok: 'pill-ok',
+  denied: 'pill-err',
+  error: 'pill-err',
 }
 
 const ACTION_FILTERS = [
@@ -241,7 +242,7 @@ export default function AuditPage() {
                         ? `${item.target_type}#${item.target_id ?? ''}`
                         : '—'}
                     </span>
-                    <span className={cn('badge-dot shrink-0', RESULT_TONE[item.result] ?? 'badge-info')}>
+                    <span className={cn('pill shrink-0', RESULT_TONE[item.result] ?? 'pill-info')}>
                       {item.result}
                     </span>
                     <ChevronDown

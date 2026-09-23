@@ -58,13 +58,14 @@ interface CollectItemRow {
   payload: Record<string, unknown> | null
 }
 
+// v5：任务状态列用实底 pill（参考图统一语言）
 const STATUS_TONE: Record<string, string> = {
-  succeeded: 'badge-ok',
-  partial: 'badge-warn',
-  failed: 'badge-err',
-  running: 'badge-info',
-  waiting_human: 'badge-warn',
-  pending: 'badge-info',
+  succeeded: 'pill-ok',
+  partial: 'pill-warn',
+  failed: 'pill-err',
+  running: 'pill-info',
+  waiting_human: 'pill-warn',
+  pending: 'pill-info',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -294,7 +295,7 @@ export default function JobDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <h2 className="text-base font-semibold">任务 #{job.job_id}</h2>
-          <span className={cn('badge-dot', STATUS_TONE[job.status] ?? 'badge-info')}>
+          <span className={cn('pill', STATUS_TONE[job.status] ?? 'pill-info')}>
             {STATUS_LABEL[job.status] ?? job.status}
           </span>
           <span className="text-xs text-muted-foreground">计划 #{job.plan_id}</span>
@@ -469,7 +470,7 @@ export default function JobDetailPage() {
                     {task.capability ? `能力：${task.capability}` : '未使用采集能力'}
                   </span>
                   {task.attempts > 1 && (
-                    <span className="badge-dot badge-warn shrink-0">
+                    <span className="pill pill-warn shrink-0">
                       尝试 {task.attempts} 次
                     </span>
                   )}

@@ -2091,3 +2091,38 @@ D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
 - **真实反爬观察**：**Cloudflare 系 3 站 + Akamai 系 1 站全部通过**（stealth 链生效，quality 0.84–0.94）；
 - **诚实边界**：Reddit 匿名拒绝（转官方 OAuth API）；ScrapingClub 站点变更不可达（不确定）；
 - 梯队 3 为观察性单请求（不采集数据），只做能力探测。
+
+## 阶段 UI-v5 · 全页统一主题升级（第一刀）
+
+状态：**进行中**（全局层 + 3 页示范完成；逐页推广待续）
+完成：2026-09-15 | 提交：`fd9fb7c`
+
+### 参考图（9 张，xjbh 免费通道生成）
+
+- 主题锚：`design/refs/v5-dashboard-upgrade-2.png`（ScrapeFlow 风）
+- 页面参考：v5-{discover,collect,datasets,compliance,schedules,audit,monitor,analytics}.png
+- **三图交叉提取统一语言**：实底状态 pill · 卡片顶部微光 · 渐变进度条 · KPI 环+sparkline · 证据代码块
+
+### 全局层（index.css——一次改动全站生效）
+
+- `.glass`/`.panel`/`.panel-2`：inset 顶部微光（受光暗示）
+- 新增 `.pill` 系列（实底白字语义色：ok/warn/err/info）
+- 新增 `.code-block`（JSON 证据 / 规则原文底衬）
+- `.bar-fill`：渐变填充
+
+### 应用（第一刀）
+
+- **Dashboard**：KPI 四要素（新组件 `MiniCharts.tsx`：RingProgress + Sparkline，全真实数据映射）+ 任务列 pill
+- **Collect / Compliance**：状态/判定列 pill
+- 体检：**16 路由全过 + 零 console 错误**（`docs/evidence/ui-v5/`）
+
+### 桥修复（D:/re-bridge，独立资产，不入库）
+
+- `l0veyou.mjs`：**token 过期检测**（JWT exp 解析）+ 刷新后内存同步 + 401 自动重试（备份 `.bak-20260916-tokenfix`）
+- 现状：l0veyou token 已过期且 account/password 为空——**待用户 F12 复制新 token**；本轮改用 xjbh 通道完成
+
+### 边界与下一步
+
+- **发现用户侧进行中工作**：`Monitor.tsx`（199 行升级）+ `components/visual/console.tsx`（StatusPill 等）——**未触碰、未提交**，待用户确认归属后统一
+- 逐页推广（第二刀）：Sites / Audit / JobDetail / Schedules / Integrations / Monitor 等页面 pill 应用与 v5 深化
+- 风格分歧点：用户 `StatusPill`（点式）vs 本轮 `.pill`（实底）——建议统一为实底（参考图语言）

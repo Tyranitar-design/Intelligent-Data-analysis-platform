@@ -2157,3 +2157,35 @@ D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
 
 - Monitor / console.tsx 归属确认后的统一（用户 `StatusPill`（点式）vs 本轮 `.pill`（实底）——建议统一为实底）
 - 逐页深化（照 v5 参考图的表格 / 矩阵 / 详情页细化）——第三刀候选
+
+## 阶段 UI-v5 · 单页深化（第三刀）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`601f306`
+
+### 交付
+
+| 页面 | 深化点 |
+|---|---|
+| **Collect** | KPI 卡升级（`KpiCard` 加 ring 槽）：**任务成功率环** + **合规通过率环**（真实比例数据）——对齐 v5 参考图的"环+数"语言 |
+| **Audit** | 证据 JSON 展示升级：`mono-tag` → **`.code-block`**（等宽底衬代码块——参考图 Evidence 面板语言） |
+
+### 语义规则延续
+
+- 环的数值全部来自真实聚合（`successRate` / `complianceRate` 计算自 jobs/verdicts）
+- 无数据时环不渲染（`undefined`）——延续"不造假"纪律
+
+### 回归
+
+- build 绿 + **16 路由体检全过**（零 console 错误）
+- Monitor 继续跳过（用户侧进行中工作）
+
+### v5 三刀总结
+
+| 刀 | 内容 | 提交 |
+|---|---|---|
+| 第一刀 | 全局层（微光/pill/code-block/渐变条）+ Dashboard KPI 四要素 + 3 页示范 | `fd9fb7c` |
+| 第二刀 | 6 页 pill 推广（Sites/Audit/JobDetail/Discover/Integrations/Schedules） | `c3b6359` |
+| 第三刀 | 深化样板（Collect KPI 环 + Audit code-block） | `601f306` |
+
+剩余：Monitor/console 归属确认后的统一；更多页面深化按需推广。

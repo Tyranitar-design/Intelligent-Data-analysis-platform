@@ -265,7 +265,7 @@ export default function AuditPage() {
                       )}
                       {item.ip && <div>来源 {item.ip}</div>}
                       {Object.keys(item.detail ?? {}).length > 0 && (
-                        <div className="mono-tag inline-block max-w-full overflow-x-auto whitespace-pre-wrap break-all">
+                        <div className="code-block max-w-full">
                           {JSON.stringify(item.detail, null, 2)}
                         </div>
                       )}

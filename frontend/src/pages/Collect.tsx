@@ -23,6 +23,7 @@ import {
 
 import apiClient from '@/api/client'
 import CountUp from '@/components/motion/CountUp'
+import { RingProgress } from '@/components/visual/MiniCharts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -190,6 +191,15 @@ export default function CollectPage() {
             )
           }
           hint={`已完成 ${finished.filter((j) => j.status === 'succeeded').length} / ${finished.length}`}
+          ring={
+            successRate == null ? undefined : (
+              <RingProgress
+                value={successRate}
+                label={`${Math.round(successRate * 100)}%`}
+                sub="成功"
+              />
+            )
+          }
         />
         <KpiCard
           index={2}
@@ -205,6 +215,15 @@ export default function CollectPage() {
             )
           }
           hint={verdicts ? `判定记录 ${verdicts.total} 条` : '—'}
+          ring={
+            complianceRate == null ? undefined : (
+              <RingProgress
+                value={complianceRate}
+                label={`${Math.round(complianceRate * 100)}%`}
+                sub="合规"
+              />
+            )
+          }
         />
         <KpiCard
           index={3}
@@ -414,12 +433,15 @@ function KpiCard({
   value,
   hint,
   featured = false,
+  ring,
 }: {
   index: number
   label: string
   value: ReactNode
   hint: string
   featured?: boolean
+  /** 右侧环形进度（v5，传真实比例） */
+  ring?: ReactNode
 }) {
   return (
     <div
@@ -428,15 +450,20 @@ function KpiCard({
     >
       <div className={cn(featured ? 'p-5' : 'p-4')}>
         <div className="label-xs mb-1.5">{label}</div>
-        <div
-          className={cn(
-            'num font-semibold tracking-tight',
-            featured ? 'text-[2rem] leading-none text-primary' : 'text-[1.6rem] leading-none',
-          )}
-        >
-          {value}
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div
+              className={cn(
+                'num font-semibold tracking-tight',
+                featured ? 'text-[2rem] leading-none text-primary' : 'text-[1.6rem] leading-none',
+              )}
+            >
+              {value}
+            </div>
+            <div className="mt-2 truncate text-[0.68rem] text-muted-foreground">{hint}</div>
+          </div>
+          {ring && <div className="shrink-0">{ring}</div>}
         </div>
-        <div className="mt-2 truncate text-[0.68rem] text-muted-foreground">{hint}</div>
       </div>
     </div>
   )

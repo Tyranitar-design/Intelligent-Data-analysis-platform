@@ -2267,3 +2267,37 @@ D · CF 挑战（nowsecure）   OK  scrapling / StealthyFetcher 链 quality=0.84
 ### UI-v5 全系列收官（五刀 + 统一）
 
 全局层（`fd9fb7c`）→ 6 页 pill（`c3b6359`）→ 深化样板（`601f306`）→ 合并统一（`ab037d8`）→ 矩阵热力（`6626bbf`）→ **深化收尾+动效（`bb42cfc`）**
+
+## 阶段 UI-v5 · 动效点缀收尾（第六刀 · 前端收官）
+
+状态：**已完成**
+完成：2026-09-15 | 提交：`2c17fb3`
+
+### 交付
+
+| 项 | 内容 |
+|---|---|
+| **扫描光扩展** | Dashboard + **Monitor** + **Discover**（3 页 panel 抬头，统一 boot-phase 美学） |
+| **克制决策（记录）** | Datasets 卡 Tilt **跳过**——motion.div 已有揭示动画 + glass-hover 反馈，避免动效堆叠（复刻经验同样强调"不过载"） |
+
+### 全量验收（三层）
+
+| 层 | 结果 |
+|---|---|
+| build | 绿（首屏预算内） |
+| 16 路由体检 | 全过 + 零 console 错误 |
+| mobile 375 | 全过 + **reduced-motion 复验**（dashboard/showcase 正常渲染——动效守护生效） |
+
+### 前端动效资产总清单（收官盘点）
+
+| 层 | 资产 | 覆盖 |
+|---|---|---|
+| **L0/L1** | 页面转场（MainLayout）/ Reveal 揭示 / Tilt 微倾斜（Dashboard/Sites）/ CountUp 数字 | 全站 |
+| **L2** | **扫描光（3 页抬头）** / CHART_MOTION 图表编排 / delta chips / sparkline | 主要页 |
+| **L3** | 星云（Showcase，three.js 懒加载 130KB + 降级链） | 展示岛 |
+| **守护** | reduced-motion 全局禁用（0.01ms）+ 移动端适配 | 全站 |
+
+### 说明
+
+- 首屏预算未变（扫描光纯 CSS、Tilt 复用既有组件——零新增体积）
+- 前端至此全链收官：v5 主题（六刀 + 统一）+ 动效三层 + 双端适配 + 性能守护

@@ -165,7 +165,7 @@ export default function MonitorPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       {/* ---------------- 控制台抬头（v3）：标识 + 实时状态条 + 操作 ---------------- */}
-      <section className="panel px-5 py-4">
+      <section className="panel scan-sweep px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-[1.05rem] font-semibold leading-tight text-foreground">运行监视</h2>

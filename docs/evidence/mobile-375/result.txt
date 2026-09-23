@@ -9,6 +9,6 @@
   OK    375px no h-overflow: analytics  --  scrollWidth=375
   OK    375px no h-overflow: showcase  --  scrollWidth=375
   OK    mobile drawer opens with nav  --  
-  OK    reduced-motion renders (dashboard)  --  body_chars=378
+  OK    reduced-motion renders (dashboard)  --  body_chars=393
   OK    reduced-motion renders (showcase)  --  body_chars=107
 RESULT: all checks passed

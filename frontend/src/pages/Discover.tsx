@@ -225,7 +225,7 @@ export default function DiscoverPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="panel flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+            className="panel scan-sweep flex flex-wrap items-center justify-between gap-4 px-5 py-4"
           >
             <div className="flex min-w-0 items-center gap-3">
               <Globe2 className="h-5 w-5 shrink-0 text-primary" />

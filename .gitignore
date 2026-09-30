@@ -50,3 +50,7 @@ backend/admin.bak/
 
 # demo.ps1 运行状态（本地文件）
 scripts/.demo-state.json
+
+# 本地运行产物与自动日志
+.codex/memory/captures/
+backend/data/

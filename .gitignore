@@ -48,9 +48,13 @@ backend/admin.bak/
 # 数据库迁移备份：本地保留用于回滚，不入版本库
 *.db.bak-*
 
-# demo.ps1 ����״̬�������ļ���
+# demo.ps1 运行状态（本地文件）
 scripts/.demo-state.json
 
-# �������в������Զ���־
+# 运行产物与自动日志
 .codex/memory/captures/
 backend/data/
+
+# 构建与覆盖率产物（通用工程化）
+build/
+coverage/

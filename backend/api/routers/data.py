@@ -214,7 +214,7 @@ async def query_table(
             if isinstance(value, str) and value.startswith("["):
                 try:
                     row[key] = json.loads(value)
-                except:
+                except json.JSONDecodeError:
                     pass
 
     return {
